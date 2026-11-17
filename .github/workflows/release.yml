@@ -105,7 +105,7 @@ jobs:
       - run: npm run build
       - run: npm run check:package
       - name: Pack once
-        run: npm pack --pack-destination ../out
+        run: mkdir -p ../out && npm pack --pack-destination ../out
       - name: JSR accepts the package
         run: npx --yes jsr publish --dry-run
       - uses: ./.github/actions/leak-check
