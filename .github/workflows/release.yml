@@ -6,21 +6,32 @@
 #   2. After the merge: git tag v0.2.0 <merge commit> && git push origin v0.2.0 (admins only).
 #   3. In the run, click "Review deployments", select every environment, approve once.
 #
-# Rehearsal: Actions > Release > Run workflow on dev. It runs every check and build, then every
-# publish job without publishing: npm and JSR with --dry-run, the PyPI files checked, a Maven
-# Central upload that is validated and then dropped, and the NuGet trusted-publishing login
+# Rehearsal: Actions > Release > Run workflow on dev, tag empty. It runs every check and build,
+# then every publish job without publishing: npm and JSR with --dry-run, the PyPI files checked, a
+# Maven Central upload that is validated and then dropped, and the NuGet trusted-publishing login
 # without a push.
+#
+# Finish an interrupted release: Run workflow on dev with the tag (v0.2.0). It builds and tests the
+# tag again and publishes only to the registries that do not have the version yet.
 #
 # Each package is built and checked once. Then each built file is installed into a clean project,
 # the way a user gets it from the registry, and runs against the API mock (release/install-test).
-# The publish jobs start only after every install test passed, and send exactly the tested files. Registries trust this file by name (npm, PyPI, NuGet) and by
-# environment: do not rename it or the environments.
+# The publish jobs start only after every install test passed, and send exactly the tested files:
+# the Maven job signs the tested jars and POM itself and builds nothing again.
+#
+# Registries trust this file by name (npm, PyPI, NuGet) and by environment: do not rename it or
+# the environments.
 name: Release
 
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Finish the release of this tag (v0.2.0). Empty: a rehearsal that publishes nothing.'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -33,8 +44,9 @@ env:
   BUN_VERSION: 1.4.0
   DOTNET_NOLOGO: '1'
   DOTNET_CLI_TELEMETRY_OPTOUT: '1'
-  # A pushed tag publishes. A manual run is a rehearsal.
-  PUBLISH: ${{ github.event_name == 'push' }}
+  # The tag of this release: the pushed tag, or the tag a manual run finishes. Empty: a rehearsal.
+  TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+  PUBLISH: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.tag != '') }}
 
 jobs:
   version:
@@ -46,6 +58,8 @@ jobs:
       npm_tag: ${{ steps.v.outputs.npm_tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG || github.ref }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
@@ -54,8 +68,8 @@ jobs:
         run: |
           bun scripts/version.ts --github >> "$GITHUB_OUTPUT"
           version="$(bun scripts/version.ts)"
-          if [ "$PUBLISH" = true ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
-            echo "Tag $GITHUB_REF_NAME, packages $version: push the tag v$version." >&2
+          if [ "$PUBLISH" = true ] && [ "$TAG" != "v$version" ]; then
+            echo "Tag $TAG, packages $version: push the tag v$version." >&2
             exit 1
           fi
           echo "Version $version (publish: $PUBLISH)"
@@ -89,6 +103,8 @@ jobs:
         working-directory: typescript
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -127,6 +143,8 @@ jobs:
         working-directory: python
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG || github.ref }}
       - uses: astral-sh/setup-uv@v6
       - uses: oven-sh/setup-bun@v2
         with:
@@ -168,6 +186,8 @@ jobs:
         working-directory: java
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG || github.ref }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -200,6 +220,8 @@ jobs:
         working-directory: dotnet
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG || github.ref }}
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
@@ -232,6 +254,8 @@ jobs:
         node: [20, 22]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
@@ -254,6 +278,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG || github.ref }}
       - uses: astral-sh/setup-uv@v6
       - uses: oven-sh/setup-bun@v2
         with:
@@ -273,6 +299,8 @@ jobs:
         java: ['11', '21']
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG || github.ref }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -292,6 +320,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG || github.ref }}
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
@@ -326,13 +356,16 @@ jobs:
           name: npm-tarball
       - name: Publish the checked tarball
         env:
-          FILE: medisync-${{ needs.version.outputs.version }}.tgz
-          TAG: ${{ needs.version.outputs.npm_tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+          NPM_TAG: ${{ needs.version.outputs.npm_tag }}
         run: |
-          if [ "$PUBLISH" = true ]; then
-            npm publish "./$FILE" --provenance --access public --tag "$TAG"
+          file="./medisync-$VERSION.tgz"
+          if [ "$PUBLISH" != true ]; then
+            npm publish "$file" --access public --tag "$NPM_TAG" --dry-run
+          elif npm view "medisync@$VERSION" version >/dev/null 2>&1; then
+            echo "medisync@$VERSION is on npm already."
           else
-            npm publish "./$FILE" --access public --tag "$TAG" --dry-run
+            npm publish "$file" --provenance --access public --tag "$NPM_TAG"
           fi
 
   jsr:
@@ -347,12 +380,22 @@ jobs:
         working-directory: typescript
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Publish to JSR (OIDC)
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
-          if [ "$PUBLISH" = true ]; then npx --yes jsr publish; else npx --yes jsr publish --dry-run; fi
+          if [ "$PUBLISH" != true ]; then
+            npx --yes jsr publish --dry-run
+          elif curl -sf "https://api.jsr.io/scopes/medisync/packages/medisync/versions/$VERSION" >/dev/null; then
+            echo "@medisync/medisync@$VERSION is on JSR already."
+          else
+            npx --yes jsr publish
+          fi
 
   pypi:
     needs: [version, install-typescript, install-python, install-java, install-dotnet]
@@ -365,11 +408,19 @@ jobs:
         with:
           name: python-dist
           path: dist/
-      - name: Rehearsal (the files passed twine check in the build)
-        if: env.PUBLISH != 'true'
-        run: ls -l dist/
+      - name: Rehearsal (the files passed twine check in the build), or on PyPI already
+        id: done
+        env:
+          PY_VERSION: ${{ needs.version.outputs.python }}
+        run: |
+          ls -l dist/
+          if [ "$PUBLISH" != true ]; then echo skip=true >> "$GITHUB_OUTPUT"; fi
+          if [ "$PUBLISH" = true ] && curl -sf "https://pypi.org/pypi/medisync/$PY_VERSION/json" >/dev/null; then
+            echo "medisync $PY_VERSION is on PyPI already."
+            echo skip=true >> "$GITHUB_OUTPUT"
+          fi
       - name: Publish the checked files (trusted publishing, with attestations)
-        if: env.PUBLISH == 'true'
+        if: steps.done.outputs.skip != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           attestations: true
@@ -378,47 +429,47 @@ jobs:
     needs: [version, install-typescript, install-python, install-java, install-dotnet]
     runs-on: ubuntu-latest
     environment: maven-central
-    defaults:
-      run:
-        working-directory: java
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
+          ref: ${{ env.TAG || github.ref }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      - name: Build and sign the bundle once (tests ran in the java job on this commit)
-        env:
-          MAVEN_GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          test -n "$MAVEN_GPG_KEY" || { echo "GPG_PRIVATE_KEY is not set" >&2; exit 1; }
-          ./mvnw -B -ntp -P release -DskipTests -DskipUpload=true deploy
-          test -f target/central-publishing/central-bundle.zip
       - uses: actions/download-artifact@v4
         with:
           name: maven-files
           path: tested
-      - name: The bundle holds exactly the tested files (the build is reproducible)
+      - name: Sign the tested files and build the Central bundle from them
         env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
-          for f in "medisync-$VERSION.jar" "medisync-$VERSION-sources.jar" "medisync-$VERSION-javadoc.jar"; do
-            cmp "target/$f" "../tested/$f" || { echo "target/$f differs from the tested file" >&2; exit 1; }
-            unzip -p target/central-publishing/central-bundle.zip "me/medisync/medisync/$VERSION/$f" | cmp - "../tested/$f"
+          test -n "$GPG_PRIVATE_KEY" || { echo "GPG_PRIVATE_KEY is not set" >&2; exit 1; }
+          GNUPGHOME="$(mktemp -d)"
+          export GNUPGHOME
+          trap 'rm -rf "$GNUPGHOME"' EXIT
+          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --quiet --import
+          dir="bundle/me/medisync/medisync/$VERSION"
+          mkdir -p "$dir"
+          for f in "medisync-$VERSION.jar" "medisync-$VERSION-sources.jar" "medisync-$VERSION-javadoc.jar"; do cp "tested/$f" "$dir/"; done
+          cp tested/pom.xml "$dir/medisync-$VERSION.pom"
+          for f in "$dir"/*; do
+            printf '%s' "$GPG_PASSPHRASE" | gpg --batch --yes --quiet --pinentry-mode loopback --passphrase-fd 0 --armor --detach-sign "$f"
+            gpg --batch --quiet --verify "$f.asc" "$f"
+            md5sum "$f" | cut -d' ' -f1 > "$f.md5"
+            sha1sum "$f" | cut -d' ' -f1 > "$f.sha1"
+            sha256sum "$f" | cut -d' ' -f1 > "$f.sha256"
+            sha512sum "$f" | cut -d' ' -f1 > "$f.sha512"
           done
-          cmp pom.xml ../tested/pom.xml
-          unzip -p target/central-publishing/central-bundle.zip "me/medisync/medisync/$VERSION/medisync-$VERSION.pom" | cmp - ../tested/pom.xml
-          echo "The bundle holds the tested files."
+          (cd bundle && zip -q -r -X ../central-bundle.zip me)
+          python3 -I -m zipfile -l central-bundle.zip
       - uses: ./.github/actions/leak-check
         with:
           ssh-key: ${{ secrets.CONNECT_DEPLOY_KEY }}
-          files: java/target/central-publishing/central-bundle.zip java/target/medisync-${{ needs.version.outputs.version }}.jar
-      - name: Upload the checked bundle to the Central Portal
+          files: central-bundle.zip
+      - name: Upload the bundle to the Central Portal
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
@@ -430,10 +481,14 @@ jobs:
           fi
           api=https://central.sonatype.com/api/v1/publisher
           auth="Authorization: Bearer $(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64 -w0)"
+          if [ "$PUBLISH" = true ] && [ "$(curl --fail-with-body -sS -H "$auth" "$api/published?namespace=me.medisync&name=medisync&version=$VERSION" | jq -r .published)" = true ]; then
+            echo "me.medisync:medisync:$VERSION is on Maven Central already."
+            exit 0
+          fi
           # A rehearsal uploads for validation only and drops the deployment afterwards.
           if [ "$PUBLISH" = true ]; then type=AUTOMATIC; done_state=PUBLISHED; else type=USER_MANAGED; done_state=VALIDATED; fi
           id="$(curl --fail-with-body -sS -X POST -H "$auth" \
-            -F "bundle=@target/central-publishing/central-bundle.zip" \
+            -F "bundle=@central-bundle.zip" \
             "$api/upload?name=medisync-java-$VERSION&publishingType=$type")"
           echo "Deployment $id"
           for _ in $(seq 1 90); do
@@ -476,10 +531,11 @@ jobs:
       - name: Push the checked packages
         if: env.PUBLISH == 'true'
         # The push of the .nupkg also sends the .snupkg next to it to the symbol server.
-        run: dotnet nuget push "packages/MediSync.${{ needs.version.outputs.version }}.nupkg" --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json
+        # --skip-duplicate: a finished release run again publishes nothing twice.
+        run: dotnet nuget push "packages/MediSync.${{ needs.version.outputs.version }}.nupkg" --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
   github-release:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
     needs: [version, npm, jsr, pypi, maven, nuget]
     runs-on: ubuntu-latest
     permissions:
@@ -494,6 +550,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PRERELEASE: ${{ needs.version.outputs.prerelease }}
         run: |
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "The GitHub release $TAG exists already."
+            exit 0
+          fi
           flag=""; [ "$PRERELEASE" = true ] && flag="--prerelease"
           # shellcheck disable=SC2086
-          gh release create "$GITHUB_REF_NAME" files/* -R "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes $flag
+          gh release create "$TAG" files/* -R "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" --generate-notes $flag
