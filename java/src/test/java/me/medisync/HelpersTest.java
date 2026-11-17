@@ -188,5 +188,12 @@ class HelpersTest {
     assertEquals("evt_1", first.get());
     holder[0].cancel(false);
     assertTrue(holder[0].isCancelled());
+    // The request in flight at the cancel still reaches the mock. Wait for it, so that it does not
+    // take the scripted answers of the next test.
+    int seen = -1;
+    for (int i = 0; i < 50 && mock.requests().size() != seen; i++) {
+      seen = mock.requests().size();
+      Thread.sleep(100);
+    }
   }
 }

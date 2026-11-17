@@ -1,0 +1,36 @@
+# The leak check of built packages before a publish. It reads the Connect contract and the name
+# list at check time through the read-only deploy key; neither file is stored in this repository.
+name: Leak check
+description: Fails when a built package names something that must not leave MediSync.
+inputs:
+  ssh-key:
+    description: The read-only deploy key of the Connect repository (secret CONNECT_DEPLOY_KEY).
+    required: true
+  files:
+    description: The built packages to check, separated by spaces, relative to the repository root.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Contract and name list of MediSync Connect
+      uses: actions/checkout@v4
+      with:
+        repository: MediSync-AI/medisync-connect
+        ref: dev
+        ssh-key: ${{ inputs.ssh-key }}
+        path: .connect-ref
+        fetch-depth: 1
+        sparse-checkout: |
+          /api/openapi.yaml
+          /release/public-names.txt
+        sparse-checkout-cone-mode: false
+        persist-credentials: false
+    - name: Leak check
+      shell: bash
+      env:
+        CONNECT_REPO: ${{ github.workspace }}/.connect-ref
+        CONNECT_REF: HEAD
+        FILES: ${{ inputs.files }}
+      run: |
+        # shellcheck disable=SC2086
+        bun release/leak-check.ts $FILES
