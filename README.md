@@ -2,12 +2,12 @@
 
 Official client libraries for the MediSync API: speech to text (batch and live), clinical notes and letters, ICD-10-GM coding, decisions, account reads and MediSync Connect. One package per language, one client for every public API.
 
-| Language | Package | Status |
+| Language | Package | Folder |
 |---|---|---|
 | TypeScript / JavaScript (Node, Bun, Deno) | `medisync` on npm, `@medisync/medisync` on JSR | [typescript/](typescript/) |
 | Python | `medisync` on PyPI | [python/](python/) |
-| Java / Kotlin | `me.medisync:medisync` on Maven Central | in development: [java/](java/) |
-| C# / .NET | `MediSync` on NuGet | in development: [dotnet/](dotnet/) |
+| Java / Kotlin | `me.medisync:medisync` on Maven Central | [java/](java/) |
+| C# / .NET | `MediSync` on NuGet | [dotnet/](dotnet/) |
 
 API reference: https://docs.medisync.me
 
@@ -43,4 +43,6 @@ cd dotnet && dotnet test && dotnet pack src/MediSync -c Release -o ../dist/dotne
 
 ## Releases
 
-A tag starts a release: `typescript-v0.1.0` publishes to npm and JSR, `python-v0.1.0` to TestPyPI and PyPI, `java-v0.1.0` to Maven Central, `dotnet-v0.1.0` to NuGet. Each release workflow first runs the lint, the unit and conformance tests, the parity test and the leak check, and checks that the tag equals the package version.
+All four packages share one version and are released together. `bun run version set 0.2.0` writes the version into every package; CI fails when the packages disagree. After the pull request is merged into `dev`, an admin pushes the tag `v0.2.0` on the merge commit. The `Release` workflow then runs every test, builds each package once, runs the leak check on the built files, and publishes those files to npm, JSR, PyPI, Maven Central and NuGet after one approval. It ends with a GitHub release. A version such as `0.2.0-beta.1` is a prerelease everywhere and goes to the npm dist-tag `beta`.
+
+To rehearse a release without publishing, start the `Release` workflow by hand on `dev`.
