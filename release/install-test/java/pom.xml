@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Install test of the Maven Central package: a clean project that depends on me.medisync:medisync
+     from a local repository that holds only the built files. run.sh sets medisync.version. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>demo</groupId>
+  <artifactId>medisync-install-test</artifactId>
+  <version>1</version>
+
+  <properties>
+    <maven.compiler.release>11</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>me.medisync</groupId>
+      <artifactId>medisync</artifactId>
+      <version>${medisync.version}</version>
+    </dependency>
+  </dependencies>
+
+</project>
