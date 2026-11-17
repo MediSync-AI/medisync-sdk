@@ -93,7 +93,9 @@ export function emitOperations(ir: Ir): string {
   let out = HEADER('specs/openapi.json and specs/connect-openapi.json');
   out += "import type { OperationMeta } from '../core/operation.ts';\n\n";
   out += `/** The API version of the specs this SDK was generated from. */\nexport const API_VERSION = ${JSON.stringify(ir.version)};\n\n`;
-  out += 'export const OPERATIONS = {\n';
+  // Explicit types: JSR refuses inferred types in the public API ("slow types").
+  out += `/** The name of every API operation, as the client methods use it. */\nexport type OperationName =\n${ir.operations.map((op) => `  | ${JSON.stringify(op.name)}`).join('\n')};\n\n`;
+  out += 'export const OPERATIONS: Readonly<Record<OperationName, OperationMeta>> = {\n';
   for (const op of ir.operations) {
     const meta = {
       api: op.api,
@@ -110,7 +112,7 @@ export function emitOperations(ir: Ir): string {
     };
     out += `  ${JSON.stringify(op.name)}: ${JSON.stringify(meta)},\n`;
   }
-  out += '} as const satisfies Record<string, OperationMeta>;\n\n';
+  out += '};\n\n';
   out += `/** Helpers on the client that are no API operation. */\nexport const HELPERS = ${JSON.stringify(ir.helpers.map((h) => h.name))} as const;\n`;
   return out;
 }

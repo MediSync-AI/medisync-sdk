@@ -11,8 +11,9 @@
 # Central upload that is validated and then dropped, and the NuGet trusted-publishing login
 # without a push.
 #
-# Each package is built and checked once; the publish jobs send exactly the files that passed the
-# tests and the leak check. Registries trust this file by name (npm, PyPI, NuGet) and by
+# Each package is built and checked once. Then each built file is installed into a clean project,
+# the way a user gets it from the registry, and runs against the API mock (release/install-test).
+# The publish jobs start only after every install test passed, and send exactly the tested files. Registries trust this file by name (npm, PyPI, NuGet) and by
 # environment: do not rename it or the environments.
 name: Release
 
@@ -105,7 +106,7 @@ jobs:
       - run: npm run build
       - run: npm run check:package
       - name: Pack once
-        run: npm pack --pack-destination ../out
+        run: mkdir -p ../out && npm pack --pack-destination ../out
       - name: JSR accepts the package
         run: npx --yes jsr publish --dry-run
       - uses: ./.github/actions/leak-check
@@ -177,6 +178,19 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
       - name: Compile with -Werror, javadoc lint, unit, parity and conformance tests, jars
         run: ./mvnw -B -ntp verify
+      - name: The files for the install test and the Maven Central bundle
+        if: matrix.java == '21'
+        run: cp pom.xml target/pom.xml
+      - uses: actions/upload-artifact@v4
+        if: matrix.java == '21'
+        with:
+          name: maven-files
+          path: |
+            java/target/medisync-${{ needs.version.outputs.version }}.jar
+            java/target/medisync-${{ needs.version.outputs.version }}-sources.jar
+            java/target/medisync-${{ needs.version.outputs.version }}-javadoc.jar
+            java/target/pom.xml
+          if-no-files-found: error
 
   dotnet:
     needs: version
@@ -208,10 +222,93 @@ jobs:
             dist/dotnet/MediSync.${{ needs.version.outputs.version }}.snupkg
           if-no-files-found: error
 
-  # The publish jobs start together after every build, so one approval covers all of them.
+  # Install tests: each built file in a clean project, as a user installs it.
+
+  install-typescript:
+    needs: [version, typescript]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: denoland/setup-deno@v2
+        if: matrix.node == 22
+        with:
+          deno-version: v2.x
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-tarball
+          path: built
+      - name: Node ${{ matrix.node }} (ESM, CommonJS, tsc --strict), Bun, and Deno on Node 22
+        run: release/install-test/typescript/run.sh built/medisync-${{ needs.version.outputs.version }}.tgz ${{ needs.version.outputs.version }}
+
+  install-python:
+    needs: [version, python]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: built
+      - name: The wheel on Python 3.9 and 3.13, the sdist on 3.13
+        run: release/install-test/python/run.sh built ${{ needs.version.outputs.python }}
+
+  install-java:
+    needs: [version, java]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: ['11', '21']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: maven-files
+          path: built
+      - name: A clean Maven project on Java ${{ matrix.java }}
+        run: release/install-test/java/run.sh built ${{ needs.version.outputs.version }}
+
+  install-dotnet:
+    needs: [version, dotnet]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: built
+      - name: A net8.0 app and a netstandard2.0 library
+        run: release/install-test/dotnet/run.sh built ${{ needs.version.outputs.version }}
+
+  # The publish jobs start together after every install test, so one approval covers all of them.
 
   npm:
-    needs: [version, typescript, python, java, dotnet]
+    needs: [version, install-typescript, install-python, install-java, install-dotnet]
     runs-on: ubuntu-latest
     environment: npm
     permissions:
@@ -239,7 +336,7 @@ jobs:
           fi
 
   jsr:
-    needs: [version, typescript, python, java, dotnet]
+    needs: [version, install-typescript, install-python, install-java, install-dotnet]
     runs-on: ubuntu-latest
     environment: jsr
     permissions:
@@ -258,7 +355,7 @@ jobs:
           if [ "$PUBLISH" = true ]; then npx --yes jsr publish; else npx --yes jsr publish --dry-run; fi
 
   pypi:
-    needs: [version, typescript, python, java, dotnet]
+    needs: [version, install-typescript, install-python, install-java, install-dotnet]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -278,7 +375,7 @@ jobs:
           attestations: true
 
   maven:
-    needs: [version, typescript, python, java, dotnet]
+    needs: [version, install-typescript, install-python, install-java, install-dotnet]
     runs-on: ubuntu-latest
     environment: maven-central
     defaults:
@@ -302,6 +399,21 @@ jobs:
           test -n "$MAVEN_GPG_KEY" || { echo "GPG_PRIVATE_KEY is not set" >&2; exit 1; }
           ./mvnw -B -ntp -P release -DskipTests -DskipUpload=true deploy
           test -f target/central-publishing/central-bundle.zip
+      - uses: actions/download-artifact@v4
+        with:
+          name: maven-files
+          path: tested
+      - name: The bundle holds exactly the tested files (the build is reproducible)
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          for f in "medisync-$VERSION.jar" "medisync-$VERSION-sources.jar" "medisync-$VERSION-javadoc.jar"; do
+            cmp "target/$f" "../tested/$f" || { echo "target/$f differs from the tested file" >&2; exit 1; }
+            unzip -p target/central-publishing/central-bundle.zip "me/medisync/medisync/$VERSION/$f" | cmp - "../tested/$f"
+          done
+          cmp pom.xml ../tested/pom.xml
+          unzip -p target/central-publishing/central-bundle.zip "me/medisync/medisync/$VERSION/medisync-$VERSION.pom" | cmp - ../tested/pom.xml
+          echo "The bundle holds the tested files."
       - uses: ./.github/actions/leak-check
         with:
           ssh-key: ${{ secrets.CONNECT_DEPLOY_KEY }}
@@ -340,17 +452,9 @@ jobs:
           done
           echo "The deployment did not reach $done_state within 30 minutes. Check it on central.sonatype.com." >&2
           exit 1
-      - uses: actions/upload-artifact@v4
-        with:
-          name: maven-jars
-          path: |
-            java/target/medisync-${{ needs.version.outputs.version }}.jar
-            java/target/medisync-${{ needs.version.outputs.version }}-sources.jar
-            java/target/medisync-${{ needs.version.outputs.version }}-javadoc.jar
-          if-no-files-found: error
 
   nuget:
-    needs: [version, typescript, python, java, dotnet]
+    needs: [version, install-typescript, install-python, install-java, install-dotnet]
     runs-on: ubuntu-latest
     environment: nuget
     permissions:

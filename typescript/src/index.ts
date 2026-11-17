@@ -40,6 +40,7 @@ export { buildRelease, type ReleaseBy } from './connect/release.ts';
 export { FINAL_TRANSCRIPTION_STATUSES, TranscriptionWaitTimeoutError, type TranscriptionWaitOptions } from './helpers/transcriptions.ts';
 export { CONTINUE_CODES, LiveStream, LiveStreamError, type StreamEvent, type StreamOptions, type StreamReconnecting, type WebSocketLike } from './live/stream.ts';
 export { API_VERSION, HELPERS, OPERATIONS } from './generated/operations.ts';
+export type { OperationName } from './generated/operations.ts';
 export { VERSION } from './version.ts';
 export type * from './generated/types/platform.ts';
 export type * from './generated/types/live.ts';
