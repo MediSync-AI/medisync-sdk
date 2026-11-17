@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <!-- Exact package versions in packages.lock.json; CI restores only those. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(GITHUB_ACTIONS)' == 'true'">true</RestoreLockedMode>
+  </PropertyGroup>
+</Project>

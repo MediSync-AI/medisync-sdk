@@ -1,0 +1,5255 @@
+{
+	"openapi": "3.1.0",
+	"info": {
+		"title": "MediSync API",
+		"version": "2026-11-01",
+		"description": "The MediSync partner API: speech to text, clinical notes, ICD-10-GM coding and decisions. Every generated note, code and decision is a draft that a clinician reviews and releases.",
+		"contact": {
+			"name": "MediSync API support",
+			"email": "support@medisync.me"
+		}
+	},
+	"servers": [
+		{
+			"url": "https://api.medisync.me",
+			"description": "Production, Frankfurt (eu-central-1)"
+		}
+	],
+	"security": [
+		{
+			"bearerAuth": []
+		}
+	],
+	"tags": [
+		{
+			"name": "Transcriptions",
+			"description": "Batch speech to text: upload a file, poll for the result."
+		},
+		{
+			"name": "Live streams",
+			"description": "Tokens for the live WebSocket. Its messages are in the AsyncAPI document: GET /v1/asyncapi.yaml."
+		},
+		{
+			"name": "Notes",
+			"description": "Structured notes and letters from a transcript. Every output is a draft."
+		},
+		{
+			"name": "Coding",
+			"description": "ICD-10-GM suggestions and catalogue search."
+		},
+		{
+			"name": "Decisions",
+			"description": "Answers to defined questions about a clinical state."
+		},
+		{
+			"name": "Account",
+			"description": "Usage and cost of the organisation."
+		}
+	],
+	"paths": {
+		"/v1/asyncapi.yaml": {
+			"get": {
+				"operationId": "getAsyncApi",
+				"summary": "Get the AsyncAPI document",
+				"description": "The AsyncAPI 3.0 document of the live WebSocket: the config, every message in both directions, close codes. Any API key can read it.",
+				"tags": ["Account"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					}
+				],
+				"responses": {
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/audio/stream/tokens": {
+			"post": {
+				"operationId": "createStreamToken",
+				"summary": "Create a stream token",
+				"description": "Creates a single-use token for one live stream, so a browser or mobile app can connect without your secret key. The token is checked once, at the WebSocket handshake.",
+				"tags": ["Live streams"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					},
+					{
+						"$ref": "#/components/parameters/IdempotencyKey"
+					}
+				],
+				"responses": {
+					"201": {
+						"description": "Created",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/StreamToken"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				},
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateStreamTokenRequest"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/audio/transcriptions": {
+			"post": {
+				"operationId": "createTranscription",
+				"summary": "Create a transcription",
+				"description": "Uploads one audio file and queues it. Poll `GET /v1/audio/transcriptions/{id}` for the result. The file is at most 100 MB and 2 hours of audio. With a test key, at most 25 MB and 50 jobs a day.",
+				"tags": ["Transcriptions"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					},
+					{
+						"$ref": "#/components/parameters/IdempotencyKey"
+					}
+				],
+				"responses": {
+					"202": {
+						"description": "Accepted. The job is queued.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TranscriptionCreated"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"413": {
+						"description": "The body or file is too large.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				},
+				"requestBody": {
+					"required": true,
+					"content": {
+						"multipart/form-data": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateTranscriptionRequest"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/audio/transcriptions/{id}": {
+			"delete": {
+				"operationId": "deleteTranscription",
+				"summary": "Delete a transcription",
+				"description": "Deletes the job and its result from the speech service now, before it expires. A completed job is billed, read or not.",
+				"tags": ["Transcriptions"],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "The transcription ID.",
+						"example": "tr_01JBZ4M2Q7R9T3V5X8Z0B2D4F6",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "Deleted. No body.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found, or it belongs to another project.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"get": {
+				"operationId": "getTranscription",
+				"summary": "Get a transcription",
+				"description": "Returns the job status and, once completed, the transcript. The audio seconds are billed once per job when it completes, whether or not you read it.",
+				"tags": ["Transcriptions"],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "The transcription ID.",
+						"example": "tr_01JBZ4M2Q7R9T3V5X8Z0B2D4F6",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Transcription"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found, or it belongs to another project.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/coding/catalogue": {
+			"get": {
+				"operationId": "getCatalogue",
+				"summary": "Get the catalogue version",
+				"description": "Returns the ICD-10-GM catalogue the coding endpoints use. Not billed.",
+				"tags": ["Coding"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Catalogue"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/coding/codes/{code}": {
+			"get": {
+				"operationId": "getCode",
+				"summary": "Get a code",
+				"description": "Returns one code with its attributes, neighbours and coding warnings.",
+				"tags": ["Coding"],
+				"parameters": [
+					{
+						"name": "code",
+						"in": "path",
+						"required": true,
+						"description": "An ICD-10-GM code.",
+						"example": "I48.0",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CodeDetail"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found, or it belongs to another project.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/coding/codes/{code}/refine": {
+			"get": {
+				"operationId": "refineCode",
+				"summary": "Refine a code",
+				"description": "Returns more specific codable codes for a code: its children, or its siblings if it has none.",
+				"tags": ["Coding"],
+				"parameters": [
+					{
+						"name": "code",
+						"in": "path",
+						"required": true,
+						"description": "An ICD-10-GM code.",
+						"example": "I48.0",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"default": 25,
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 100
+						}
+					},
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Refinement"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not found, or it belongs to another project.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/coding/icd10gm": {
+			"post": {
+				"operationId": "codeIcd10gm",
+				"summary": "Suggest ICD-10-GM codes",
+				"description": "Codes up to 64 diagnosis mentions. Each mention comes back accepted, suggested or rejected. Codes are drafts until a clinician releases them.",
+				"tags": ["Coding"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					},
+					{
+						"$ref": "#/components/parameters/IdempotencyKey"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/CodeResult"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "A request with the same Idempotency-Key is still running.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"413": {
+						"description": "The body or file is too large.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				},
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CodeRequest"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/coding/search": {
+			"get": {
+				"operationId": "searchCodes",
+				"summary": "Search the catalogue",
+				"description": "Finds codes by code, term or phrase.",
+				"tags": ["Coding"],
+				"parameters": [
+					{
+						"name": "q",
+						"in": "query",
+						"required": true,
+						"description": "A code, a term or a phrase.",
+						"example": "Vorhofflimmern",
+						"schema": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 200
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"default": 20,
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 50
+						}
+					},
+					{
+						"name": "codable_only",
+						"in": "query",
+						"required": false,
+						"description": "Hide non-terminal codes and codes not allowed in ambulant care.",
+						"schema": {
+							"default": true,
+							"type": "boolean"
+						}
+					},
+					{
+						"name": "semantic",
+						"in": "query",
+						"required": false,
+						"description": "Fall back to meaning-based search for phrases.",
+						"schema": {
+							"default": true,
+							"type": "boolean"
+						}
+					},
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SearchResult"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/costs": {
+			"get": {
+				"operationId": "getCosts",
+				"summary": "Get costs",
+				"description": "Cost of your organisation in EUR net per UTC day, project and product, for live keys. Test keys are never billed. Needs the `usage.read` scope.",
+				"tags": ["Account"],
+				"parameters": [
+					{
+						"name": "starting_at",
+						"in": "query",
+						"required": false,
+						"description": "Start, inclusive. `YYYY-MM-DD` (UTC midnight) or ISO 8601. Default: 7 days before `ending_at`.",
+						"example": "2026-11-01",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "ending_at",
+						"in": "query",
+						"required": false,
+						"description": "End, exclusive. Default: the next UTC midnight. At most 93 days after `starting_at`.",
+						"example": "2026-11-08",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "project_id",
+						"in": "query",
+						"required": false,
+						"description": "Only this project. Default: all projects.",
+						"example": "proj_01JBY2…",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Costs"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/decisions": {
+			"post": {
+				"operationId": "createDecision",
+				"summary": "Create a decision",
+				"description": "Answers up to 64 questions about one clinical state. The answers are probabilities for a clinician, not decisions on their own.",
+				"tags": ["Decisions"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					},
+					{
+						"$ref": "#/components/parameters/IdempotencyKey"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Decision"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "A request with the same Idempotency-Key is still running.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"413": {
+						"description": "The body or file is too large.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				},
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/DecisionRequest"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/decisions/batch": {
+			"post": {
+				"operationId": "createDecisionBatch",
+				"summary": "Create decisions in a batch",
+				"description": "Runs 1 to 64 decision requests in one call. A failed request has an `error` entry in its place.",
+				"tags": ["Decisions"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					},
+					{
+						"$ref": "#/components/parameters/IdempotencyKey"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/DecisionBatch"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "A request with the same Idempotency-Key is still running.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"413": {
+						"description": "The body or file is too large.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				},
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/DecisionBatchRequest"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/letters": {
+			"post": {
+				"operationId": "createLetter",
+				"summary": "Create a letter",
+				"description": "Writes the sections of a letter from clinical notes and your template. The result is a draft that a clinician reviews and releases.",
+				"tags": ["Notes"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					},
+					{
+						"$ref": "#/components/parameters/IdempotencyKey"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Letter"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "A request with the same Idempotency-Key is still running.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				},
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateLetterRequest"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/models": {
+			"get": {
+				"operationId": "listModels",
+				"summary": "List models",
+				"description": "Lists the models your key can use, one or more per API. Speech, Notes and Coding each run on one model; Decisions models are listed when the key has the `decisions` scope. Any API key can call it.",
+				"tags": ["Account"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ModelList"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/notes": {
+			"post": {
+				"operationId": "createNote",
+				"summary": "Create a structured note",
+				"description": "Fills the fields of your form from a transcript. Every value carries the quote it came from. The result is a draft that a clinician reviews and releases.",
+				"tags": ["Notes"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					},
+					{
+						"$ref": "#/components/parameters/IdempotencyKey"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Note"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "A request with the same Idempotency-Key is still running.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				},
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/CreateNoteRequest"
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/openapi.json": {
+			"get": {
+				"operationId": "getOpenApi",
+				"summary": "Get the OpenAPI document",
+				"description": "The OpenAPI 3.1 document of this API: every endpoint, request and response schema. Any API key can read it.",
+				"tags": ["Account"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					}
+				],
+				"responses": {
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/usage": {
+			"get": {
+				"operationId": "getUsage",
+				"summary": "Get usage",
+				"description": "Usage of your organisation per UTC day, project, product, unit and environment. Needs the `usage.read` scope.",
+				"tags": ["Account"],
+				"parameters": [
+					{
+						"name": "starting_at",
+						"in": "query",
+						"required": false,
+						"description": "Start, inclusive. `YYYY-MM-DD` (UTC midnight) or ISO 8601. Default: 7 days before `ending_at`.",
+						"example": "2026-11-01",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "ending_at",
+						"in": "query",
+						"required": false,
+						"description": "End, exclusive. Default: the next UTC midnight. At most 93 days after `starting_at`.",
+						"example": "2026-11-08",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"name": "project_id",
+						"in": "query",
+						"required": false,
+						"description": "Only this project. Default: all projects.",
+						"example": "proj_01JBY2…",
+						"schema": {
+							"type": "string"
+						}
+					},
+					{
+						"$ref": "#/components/parameters/MediSyncVersion"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"medisync-version": {
+								"$ref": "#/components/headers/MediSyncVersion"
+							},
+							"x-ratelimit-limit-requests": {
+								"$ref": "#/components/headers/RateLimitLimit"
+							},
+							"x-ratelimit-remaining-requests": {
+								"$ref": "#/components/headers/RateLimitRemaining"
+							},
+							"x-ratelimit-reset-requests": {
+								"$ref": "#/components/headers/RateLimitReset"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Usage"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request is not valid. `error.param` names the field.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limit reached. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							},
+							"retry-after": {
+								"$ref": "#/components/headers/RetryAfter"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"504": {
+						"description": "A service did not answer in time.",
+						"headers": {
+							"request-id": {
+								"$ref": "#/components/headers/RequestId"
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/audio/stream": {
+			"get": {
+				"operationId": "openStream",
+				"tags": ["Live streams"],
+				"summary": "Open a live stream (WebSocket)",
+				"description": "Upgrade to a WebSocket at `wss://api.medisync.me/v1/audio/stream`. Authenticate with `Authorization: Bearer msk_…` or a stream token in `?token=mst_…`. The messages are described in the AsyncAPI document (GET /v1/asyncapi.yaml, any API key). A refused handshake answers with HTTP status and the usual error body.",
+				"parameters": [
+					{
+						"name": "token",
+						"in": "query",
+						"required": false,
+						"description": "A single-use stream token from `POST /v1/audio/stream/tokens`.",
+						"schema": {
+							"type": "string",
+							"example": "mst_8fK2pQ7xZa_Jd93LmQv0RtY6WbN1cHs4EuK8gPzA2fXo7Mi"
+						}
+					}
+				],
+				"responses": {
+					"101": {
+						"description": "Switching protocols. The stream is open."
+					},
+					"401": {
+						"description": "The API key is missing, not valid, revoked or expired.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "The key lacks the scope, the IP is not allowed, or the key or organisation is disabled.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "The project has reached its concurrent stream limit (`concurrent_streams_exceeded`) or rate limit.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "An error on our side. Retry, then contact support with the request ID.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "A service is busy or down. Wait for `retry-after` seconds.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"components": {
+		"securitySchemes": {
+			"bearerAuth": {
+				"type": "http",
+				"scheme": "bearer",
+				"description": "A secret API key from the console: `msk_live_…` or `msk_test_…`."
+			}
+		},
+		"parameters": {
+			"MediSyncVersion": {
+				"name": "MediSync-Version",
+				"in": "header",
+				"required": false,
+				"description": "The API version. Without it, the version pinned to your organisation applies. Supported: 2026-11-01.",
+				"schema": {
+					"type": "string",
+					"enum": ["2026-11-01"],
+					"example": "2026-11-01"
+				}
+			},
+			"IdempotencyKey": {
+				"name": "Idempotency-Key",
+				"in": "header",
+				"required": false,
+				"description": "Any unique string, at most 255 characters. The answer is stored for 24 hours per project and replayed for a retry with the same key and body.",
+				"schema": {
+					"type": "string",
+					"maxLength": 255,
+					"example": "0f7c2e4a-6b1d-4c8e-9a3f-5d2b7e1c9f04"
+				}
+			}
+		},
+		"headers": {
+			"RequestId": {
+				"description": "The ID of this request. Quote it to support.",
+				"schema": {
+					"type": "string",
+					"example": "req_01JBZ3K4W6Q8T1V5X7Y9A2C4E6"
+				}
+			},
+			"MediSyncVersion": {
+				"description": "The API version that answered.",
+				"schema": {
+					"type": "string",
+					"example": "2026-11-01"
+				}
+			},
+			"RateLimitLimit": {
+				"description": "Requests allowed per minute for this product and project.",
+				"schema": {
+					"type": "integer",
+					"example": 60
+				}
+			},
+			"RateLimitRemaining": {
+				"description": "Requests left in the current window.",
+				"schema": {
+					"type": "integer",
+					"example": 59
+				}
+			},
+			"RateLimitReset": {
+				"description": "Time until the allowance is full again, in seconds with an `s` suffix.",
+				"schema": {
+					"type": "string",
+					"example": "1s"
+				}
+			},
+			"RetryAfter": {
+				"description": "Seconds to wait before a retry.",
+				"schema": {
+					"type": "integer",
+					"example": 5
+				}
+			}
+		},
+		"schemas": {
+			"Error": {
+				"type": "object",
+				"properties": {
+					"type": {
+						"type": "string",
+						"const": "error"
+					},
+					"error": {
+						"type": "object",
+						"properties": {
+							"type": {
+								"description": "The class of error. Switch on this in code.",
+								"type": "string",
+								"enum": [
+									"invalid_request_error",
+									"authentication_error",
+									"permission_error",
+									"not_found_error",
+									"conflict_error",
+									"request_too_large",
+									"rate_limit_error",
+									"api_error",
+									"overloaded_error",
+									"timeout_error",
+									"target_error"
+								]
+							},
+							"code": {
+								"description": "The exact reason. Stable; listed on the errors page.",
+								"example": "missing_scope",
+								"type": "string"
+							},
+							"message": {
+								"description": "A sentence for a person. It can change; do not parse it.",
+								"type": "string"
+							},
+							"param": {
+								"description": "The parameter or header the error is about, if any.",
+								"example": "expires_in",
+								"anyOf": [
+									{
+										"type": "string"
+									},
+									{
+										"type": "null"
+									}
+								]
+							},
+							"request_id": {
+								"description": "The same as the outer `request_id`. MediSync Connect errors carry it only here, so read `error.request_id` to handle both.",
+								"example": "req_01JBZ3K4W6Q8T1V5X7Y9A2C4E6",
+								"type": "string"
+							}
+						},
+						"required": ["type", "code", "message", "param", "request_id"],
+						"additionalProperties": false
+					},
+					"request_id": {
+						"description": "Quote it to support.",
+						"example": "req_01JBZ3K4W6Q8T1V5X7Y9A2C4E6",
+						"type": "string"
+					}
+				},
+				"required": ["type", "error", "request_id"],
+				"additionalProperties": false
+			},
+			"StreamToken": {
+				"type": "object",
+				"properties": {
+					"token": {
+						"description": "Single-use token for one live stream. Pass it as `?token=` on the WebSocket URL.",
+						"example": "mst_8fK2pQ7xZa_Jd93LmQv0RtY6WbN1cHs4EuK8gPzA2fXo7Mi",
+						"type": "string"
+					},
+					"expires_at": {
+						"format": "date-time",
+						"example": "2026-11-03T09:15:07.000Z",
+						"type": "string"
+					}
+				},
+				"required": ["token", "expires_at"],
+				"additionalProperties": false
+			},
+			"CreateStreamTokenRequest": {
+				"type": "object",
+				"properties": {
+					"expires_in": {
+						"description": "Seconds until the token expires if it is not used.",
+						"example": 60,
+						"default": 60,
+						"type": "integer",
+						"minimum": 10,
+						"maximum": 600
+					}
+				}
+			},
+			"TranscriptionCreated": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"example": "tr_01JBZ4M2Q7R9T3V5X8Z0B2D4F6",
+						"type": "string"
+					},
+					"object": {
+						"type": "string",
+						"const": "transcription"
+					},
+					"status": {
+						"type": "string",
+						"const": "queued"
+					},
+					"created_at": {
+						"format": "date-time",
+						"example": "2026-11-03T09:14:07.512Z",
+						"type": "string"
+					}
+				},
+				"required": ["id", "object", "status", "created_at"],
+				"additionalProperties": false
+			},
+			"CreateTranscriptionRequest": {
+				"type": "object",
+				"properties": {
+					"file": {
+						"format": "binary",
+						"contentMediaType": "application/octet-stream",
+						"description": "The audio file. At most 100 MB and 2 hours (7,200 s) of audio. WAV with 16-bit PCM is the tested format; FLAC, MP3, M4A and Ogg are decoded with FFmpeg. Stereo is mixed to mono.",
+						"type": "string"
+					},
+					"language": {
+						"description": "ISO 639-1 code of the spoken language, lower case, without region. Without it the language is detected.",
+						"example": "de",
+						"enum": [
+							"bg",
+							"cs",
+							"da",
+							"de",
+							"el",
+							"en",
+							"es",
+							"et",
+							"fi",
+							"fr",
+							"hr",
+							"hu",
+							"it",
+							"lt",
+							"lv",
+							"mt",
+							"nl",
+							"pl",
+							"pt",
+							"ro",
+							"ru",
+							"sk",
+							"sl",
+							"sv",
+							"uk"
+						],
+						"type": "string"
+					},
+					"diarization": {
+						"description": "Separate the speakers and return `speakers`.",
+						"example": true,
+						"default": true,
+						"type": "boolean"
+					},
+					"max_speakers": {
+						"description": "The most speakers to separate. Values above 8 count as 8.",
+						"example": 2,
+						"default": 8,
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 8
+					},
+					"speaker_roles": {
+						"description": "Label each speaker as doctor, patient, companion, staff or other. Needs `diarization`.",
+						"example": true,
+						"default": false,
+						"type": "boolean"
+					},
+					"terms": {
+						"description": "A JSON array of words to spell correctly, such as drug names: `[\"Ramipril\",\"Metoprolol\"]`. At most 500 terms of 2 to 80 characters. A value that is not a JSON array is ignored.",
+						"example": "[\"Ramipril\",\"Metoprolol\",\"Vorhofflimmern\"]",
+						"type": "string"
+					}
+				},
+				"required": ["file"]
+			},
+			"SpeakerRoles": {
+				"description": "Role per speaker label. Present when `speaker_roles` was requested.",
+				"type": "object",
+				"propertyNames": {
+					"type": "string"
+				},
+				"additionalProperties": {
+					"type": "object",
+					"properties": {
+						"role": {
+							"type": "string",
+							"enum": ["doctor", "patient", "companion", "staff", "other"]
+						},
+						"confidence": {
+							"example": 0.96,
+							"type": "number",
+							"minimum": 0,
+							"maximum": 1
+						},
+						"probabilities": {
+							"example": {
+								"doctor": 0.96,
+								"patient": 0.02,
+								"companion": 0.01,
+								"staff": 0.01,
+								"other": 0
+							},
+							"type": "object",
+							"propertyNames": {
+								"type": "string",
+								"enum": ["doctor", "patient", "companion", "staff", "other"]
+							},
+							"additionalProperties": {
+								"type": "number"
+							}
+						}
+					},
+					"required": ["role", "confidence", "probabilities"],
+					"additionalProperties": false
+				}
+			},
+			"Transcription": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"example": "tr_01JBZ4M2Q7R9T3V5X8Z0B2D4F6",
+						"type": "string"
+					},
+					"object": {
+						"type": "string",
+						"const": "transcription"
+					},
+					"status": {
+						"description": "`expired`: the result was kept for its retention time (1 hour after completion) and is gone.",
+						"type": "string",
+						"enum": ["queued", "processing", "completed", "failed", "expired"]
+					},
+					"created_at": {
+						"format": "date-time",
+						"example": "2026-11-03T09:14:07.512Z",
+						"type": "string"
+					},
+					"error": {
+						"description": "Set when `status` is `failed`.",
+						"anyOf": [
+							{
+								"type": "object",
+								"properties": {
+									"code": {
+										"type": "string",
+										"const": "transcription_failed"
+									},
+									"message": {
+										"type": "string",
+										"const": "The audio could not be transcribed. Check the file format."
+									}
+								},
+								"required": ["code", "message"],
+								"additionalProperties": false
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"result": {
+						"anyOf": [
+							{
+								"type": "object",
+								"properties": {
+									"text": {
+										"example": "Ihr Blutdruck liegt heute bei 145 zu 90. Seit gestern.",
+										"type": "string"
+									},
+									"language": {
+										"description": "Detected language, ISO 639-1.",
+										"example": "de",
+										"anyOf": [
+											{
+												"type": "string"
+											},
+											{
+												"type": "null"
+											}
+										]
+									},
+									"duration_seconds": {
+										"description": "Length of the audio. This is the billed quantity.",
+										"example": 312.4,
+										"type": "number"
+									},
+									"words": {
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"word": {
+													"example": "Blutdruck",
+													"type": "string"
+												},
+												"start": {
+													"description": "Seconds from the start of the file.",
+													"example": 12.48,
+													"anyOf": [
+														{
+															"type": "number"
+														},
+														{
+															"type": "null"
+														}
+													]
+												},
+												"end": {
+													"description": "Seconds from the start of the file.",
+													"example": 13.02,
+													"anyOf": [
+														{
+															"type": "number"
+														},
+														{
+															"type": "null"
+														}
+													]
+												}
+											},
+											"required": ["word", "start", "end"],
+											"additionalProperties": false
+										}
+									},
+									"speakers": {
+										"description": "Empty when diarization was off.",
+										"type": "array",
+										"items": {
+											"type": "object",
+											"properties": {
+												"speaker": {
+													"description": "Speaker label, `speaker0` to `speaker7`, as in a live stream.",
+													"example": "speaker0",
+													"type": "string"
+												},
+												"start": {
+													"example": 11.9,
+													"type": "number"
+												},
+												"end": {
+													"example": 15.36,
+													"type": "number"
+												},
+												"text": {
+													"example": "Ihr Blutdruck liegt heute bei 145 zu 90.",
+													"type": "string"
+												}
+											},
+											"required": ["speaker", "start", "end", "text"],
+											"additionalProperties": false
+										}
+									},
+									"speaker_roles": {
+										"anyOf": [
+											{
+												"$ref": "#/components/schemas/SpeakerRoles"
+											},
+											{
+												"type": "null"
+											}
+										]
+									}
+								},
+								"required": ["text", "language", "duration_seconds", "words", "speakers", "speaker_roles"],
+								"additionalProperties": false
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"result_expires_at": {
+						"format": "date-time",
+						"description": "When the result is deleted.",
+						"example": "2026-11-03T10:19:44.000Z",
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["id", "object", "status", "created_at", "result"],
+				"additionalProperties": false
+			},
+			"Catalogue": {
+				"type": "object",
+				"properties": {
+					"system": {
+						"type": "string",
+						"const": "icd-10-gm"
+					},
+					"version": {
+						"description": "Catalogue year.",
+						"example": "2026",
+						"type": "string"
+					},
+					"codes": {
+						"example": 12667,
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"strings": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"encoder": {
+						"type": "string"
+					},
+					"built_at": {
+						"example": "2026-01-12T08:30:00Z",
+						"type": "string"
+					},
+					"attribution": {
+						"example": "Die Erstellung erfolgt unter Verwendung der maschinenlesbaren Fassung des Bundesinstituts für Arzneimittel und Medizinprodukte (BfArM).",
+						"type": "string"
+					}
+				},
+				"required": ["system", "version", "codes", "strings", "encoder", "built_at", "attribution"],
+				"additionalProperties": false
+			},
+			"CodeDetail": {
+				"type": "object",
+				"properties": {
+					"code": {
+						"example": "I48.0",
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"terminal": {
+						"type": "boolean"
+					},
+					"codable": {
+						"type": "boolean"
+					},
+					"attributes": {
+						"type": "object",
+						"properties": {
+							"codability_ambulant": {},
+							"codability_stationary": {},
+							"sex": {},
+							"age_low": {},
+							"age_high": {},
+							"usage": {}
+						},
+						"required": [
+							"codability_ambulant",
+							"codability_stationary",
+							"sex",
+							"age_low",
+							"age_high",
+							"usage"
+						],
+						"additionalProperties": false
+					},
+					"synonyms": {
+						"maxItems": 25,
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"parents": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"code": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"codable": {
+									"type": "boolean"
+								}
+							},
+							"required": ["code", "title", "codable"],
+							"additionalProperties": false
+						}
+					},
+					"children": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"code": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"codable": {
+									"type": "boolean"
+								}
+							},
+							"required": ["code", "title", "codable"],
+							"additionalProperties": false
+						}
+					},
+					"siblings": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"code": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"codable": {
+									"type": "boolean"
+								}
+							},
+							"required": ["code", "title", "codable"],
+							"additionalProperties": false
+						}
+					},
+					"warnings": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"code": {
+									"type": "string",
+									"enum": [
+										"unspecified_code",
+										"star_needs_primary",
+										"supplement_needs_primary",
+										"sex_restricted",
+										"age_restricted"
+									]
+								},
+								"severity": {
+									"type": "string",
+									"enum": ["info", "warning"]
+								},
+								"message": {
+									"description": "German text for the clinician.",
+									"type": "string"
+								}
+							},
+							"required": ["code", "severity", "message"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": [
+					"code",
+					"title",
+					"terminal",
+					"codable",
+					"attributes",
+					"synonyms",
+					"parents",
+					"children",
+					"siblings",
+					"warnings"
+				],
+				"additionalProperties": false
+			},
+			"Refinement": {
+				"type": "object",
+				"properties": {
+					"code": {
+						"type": "string"
+					},
+					"title": {
+						"type": "string"
+					},
+					"reason": {
+						"type": "string",
+						"enum": ["children", "siblings"]
+					},
+					"options": {
+						"description": "Codable codes only.",
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"code": {
+									"type": "string"
+								},
+								"title": {
+									"type": "string"
+								},
+								"codable": {
+									"type": "boolean"
+								}
+							},
+							"required": ["code", "title", "codable"],
+							"additionalProperties": false
+						}
+					},
+					"warnings": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"code": {
+									"type": "string",
+									"enum": [
+										"unspecified_code",
+										"star_needs_primary",
+										"supplement_needs_primary",
+										"sex_restricted",
+										"age_restricted"
+									]
+								},
+								"severity": {
+									"type": "string",
+									"enum": ["info", "warning"]
+								},
+								"message": {
+									"description": "German text for the clinician.",
+									"type": "string"
+								}
+							},
+							"required": ["code", "severity", "message"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["code", "title", "reason", "options", "warnings"],
+				"additionalProperties": false
+			},
+			"CodeResult": {
+				"description": "Suggestions for a clinician. Codes are drafts until a clinician releases them.",
+				"type": "object",
+				"properties": {
+					"results": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"mention_id": {
+									"example": "m1",
+									"type": "string"
+								},
+								"status": {
+									"description": "`accepted`: confident enough to insert into the document. `suggested`: show it to the clinician to pick. `rejected`: no code; see `reason`.",
+									"type": "string",
+									"enum": ["accepted", "suggested", "rejected"]
+								},
+								"code": {
+									"example": "I10.90",
+									"anyOf": [
+										{
+											"type": "string"
+										},
+										{
+											"type": "null"
+										}
+									]
+								},
+								"title": {
+									"description": "The official catalogue title.",
+									"anyOf": [
+										{
+											"type": "string"
+										},
+										{
+											"type": "null"
+										}
+									]
+								},
+								"score": {
+									"example": 0.8712,
+									"anyOf": [
+										{
+											"type": "number"
+										},
+										{
+											"type": "null"
+										}
+									]
+								},
+								"certainty": {
+									"anyOf": [
+										{
+											"type": "string"
+										},
+										{
+											"type": "null"
+										}
+									]
+								},
+								"reason": {
+									"anyOf": [
+										{
+											"type": "string",
+											"enum": [
+												"no_candidates",
+												"below_threshold",
+												"no_plausible_candidate",
+												"negated",
+												"not_a_diagnosis",
+												"normal_finding"
+											]
+										},
+										{
+											"type": "null"
+										}
+									]
+								},
+								"alternatives": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"code": {
+												"example": "I10.00",
+												"type": "string"
+											},
+											"title": {
+												"type": "string"
+											},
+											"score": {
+												"type": "number"
+											},
+											"reason": {
+												"anyOf": [
+													{
+														"type": "string",
+														"enum": [
+															"below_threshold",
+															"not_a_symptom_code",
+															"sex_mismatch",
+															"age_mismatch",
+															"past_event"
+														]
+													},
+													{
+														"type": "null"
+													}
+												]
+											}
+										},
+										"required": ["code", "title", "score", "reason"],
+										"additionalProperties": false
+									}
+								}
+							},
+							"required": [
+								"mention_id",
+								"status",
+								"code",
+								"title",
+								"score",
+								"certainty",
+								"reason",
+								"alternatives"
+							],
+							"additionalProperties": false
+						}
+					},
+					"catalogue": {
+						"$ref": "#/components/schemas/Catalogue"
+					},
+					"took_ms": {
+						"example": 41.3,
+						"type": "number"
+					}
+				},
+				"required": ["results", "catalogue", "took_ms"],
+				"additionalProperties": false
+			},
+			"CodeRequest": {
+				"type": "object",
+				"properties": {
+					"mentions": {
+						"description": "1 to 64 mentions per request.",
+						"minItems": 1,
+						"maxItems": 64,
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"description": "Your ID, echoed as `mention_id`.",
+									"example": "m1",
+									"type": "string"
+								},
+								"text": {
+									"description": "The span as written in the note.",
+									"example": "art. Hypertonie",
+									"type": "string",
+									"minLength": 1,
+									"maxLength": 400
+								},
+								"kind": {
+									"description": "Only `diagnosis` is always coded; `symptom` and `finding` depend on `symptom_mode`.",
+									"default": "diagnosis",
+									"type": "string",
+									"enum": ["diagnosis", "finding", "symptom", "procedure", "service", "other"]
+								},
+								"certainty": {
+									"description": "ICD-10-GM Zusatzkennzeichen, echoed back.",
+									"example": "G",
+									"anyOf": [
+										{
+											"type": "string",
+											"enum": ["G", "V", "A", "Z"]
+										},
+										{
+											"type": "null"
+										}
+									]
+								},
+								"negated": {
+									"description": "A negated mention is rejected with `negated`.",
+									"default": false,
+									"type": "boolean"
+								},
+								"past": {
+									"description": "History of: swaps an acute event or past substance use for its history code. A chronic disease keeps its code, so check `title`.",
+									"default": false,
+									"type": "boolean"
+								},
+								"section": {
+									"example": "Diagnosen",
+									"anyOf": [
+										{
+											"type": "string"
+										},
+										{
+											"type": "null"
+										}
+									]
+								},
+								"queries": {
+									"description": "Up to 8 paraphrases in catalogue wording. They raise recall the most.",
+									"example": ["Essentielle Hypertonie", "Bluthochdruck"],
+									"maxItems": 8,
+									"type": "array",
+									"items": {
+										"type": "string"
+									}
+								}
+							},
+							"required": ["id", "text"]
+						}
+					},
+					"patient": {
+						"description": "Filters codes restricted by sex or age.",
+						"type": "object",
+						"properties": {
+							"sex": {
+								"anyOf": [
+									{
+										"type": "string",
+										"enum": ["m", "w"]
+									},
+									{
+										"type": "null"
+									}
+								]
+							},
+							"age_days": {
+								"example": 24472,
+								"type": "integer",
+								"minimum": 0,
+								"maximum": 73000
+							},
+							"setting": {
+								"default": "ambulant",
+								"type": "string",
+								"enum": ["ambulant", "stationary"]
+							}
+						}
+					},
+					"top_k": {
+						"description": "Alternatives to return per mention.",
+						"default": 5,
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 25
+					},
+					"min_score": {
+						"description": "Candidates below this score are dropped.",
+						"default": 0.45,
+						"type": "number",
+						"minimum": 0,
+						"maximum": 1
+					},
+					"symptom_mode": {
+						"description": "`off` rejects symptom and finding mentions as `not_a_diagnosis`.",
+						"default": "any",
+						"type": "string",
+						"enum": ["off", "symptom_codes", "any"]
+					}
+				},
+				"required": ["mentions"]
+			},
+			"SearchResult": {
+				"type": "object",
+				"properties": {
+					"query": {
+						"type": "string"
+					},
+					"results": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"code": {
+									"example": "I48.0",
+									"type": "string"
+								},
+								"title": {
+									"example": "Vorhofflimmern, paroxysmal",
+									"type": "string"
+								},
+								"score": {
+									"type": "number"
+								},
+								"match": {
+									"type": "string",
+									"enum": ["code", "exact", "prefix", "term", "semantic"]
+								},
+								"matched_term": {
+									"anyOf": [
+										{
+											"type": "string"
+										},
+										{
+											"type": "null"
+										}
+									]
+								},
+								"terminal": {
+									"type": "boolean"
+								},
+								"codable": {
+									"type": "boolean"
+								}
+							},
+							"required": ["code", "title", "score", "match", "matched_term", "terminal", "codable"],
+							"additionalProperties": false
+						}
+					},
+					"catalogue": {
+						"$ref": "#/components/schemas/Catalogue"
+					},
+					"took_ms": {
+						"type": "number"
+					}
+				},
+				"required": ["query", "results", "catalogue", "took_ms"],
+				"additionalProperties": false
+			},
+			"Costs": {
+				"type": "object",
+				"properties": {
+					"object": {
+						"type": "string",
+						"const": "costs"
+					},
+					"currency": {
+						"type": "string",
+						"const": "EUR"
+					},
+					"starting_at": {
+						"format": "date-time",
+						"example": "2026-11-01T00:00:00.000Z",
+						"type": "string"
+					},
+					"ending_at": {
+						"format": "date-time",
+						"example": "2026-11-08T00:00:00.000Z",
+						"type": "string"
+					},
+					"data": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"date": {
+									"description": "UTC day.",
+									"example": "2026-11-03",
+									"type": "string"
+								},
+								"project_id": {
+									"example": "proj_01JBY2H3K5M7P9R1T3V5X7Z9B1",
+									"type": "string"
+								},
+								"product": {
+									"description": "Only products with a price. Connect calls are in `/v1/usage`, never here.",
+									"example": "speech.batch",
+									"type": "string",
+									"enum": [
+										"speech.batch",
+										"speech.live",
+										"speech.live_diarized",
+										"notes.note",
+										"notes.letter",
+										"coding.code",
+										"coding.search",
+										"decisions.request"
+									]
+								},
+								"amount": {
+									"description": "EUR net, six decimal places, at the rates your invoice uses. The invoice rounds once per line, so a month can differ from the sum of its days by up to a cent per line.",
+									"example": "1.842300",
+									"type": "string"
+								}
+							},
+							"required": ["date", "project_id", "product", "amount"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["object", "currency", "starting_at", "ending_at", "data"],
+				"additionalProperties": false
+			},
+			"Decision": {
+				"description": "A draft for a clinician, not a clinical decision.",
+				"type": "object",
+				"properties": {
+					"id": {
+						"example": "dec_01JBZ6P0S2U4W6Y8A0C2E4G6J8",
+						"type": "string"
+					},
+					"model": {
+						"example": "ms-decide-mini",
+						"type": "string"
+					},
+					"answers": {
+						"type": "object",
+						"propertyNames": {
+							"type": "string"
+						},
+						"additionalProperties": {
+							"anyOf": [
+								{
+									"type": "object",
+									"properties": {
+										"type": {
+											"type": "string",
+											"const": "noul"
+										},
+										"noul": {
+											"description": "Probability that the statement is true.",
+											"example": 0.91,
+											"type": "number"
+										}
+									},
+									"required": ["type", "noul"],
+									"additionalProperties": false
+								},
+								{
+									"type": "object",
+									"properties": {
+										"type": {
+											"type": "string",
+											"const": "choice"
+										},
+										"choice": {
+											"example": "kardiologie",
+											"type": "string"
+										},
+										"confidence": {
+											"type": "number"
+										},
+										"probabilities": {
+											"type": "object",
+											"propertyNames": {
+												"type": "string"
+											},
+											"additionalProperties": {
+												"type": "number"
+											}
+										}
+									},
+									"required": ["type", "choice", "confidence", "probabilities"],
+									"additionalProperties": false
+								},
+								{
+									"type": "object",
+									"properties": {
+										"type": {
+											"type": "string",
+											"const": "score"
+										},
+										"score": {
+											"description": "Expected level, from 0 to the number of levels minus 1. 1.84 lies between level 1 and 2.",
+											"example": 1.84,
+											"type": "number"
+										},
+										"confidence": {
+											"type": "number"
+										},
+										"legend": {
+											"type": "object",
+											"propertyNames": {
+												"type": "string"
+											},
+											"additionalProperties": {
+												"type": "string"
+											}
+										},
+										"probabilities": {
+											"type": "object",
+											"propertyNames": {
+												"type": "string"
+											},
+											"additionalProperties": {
+												"type": "number"
+											}
+										}
+									},
+									"required": ["type", "score", "confidence", "legend", "probabilities"],
+									"additionalProperties": false
+								}
+							]
+						}
+					},
+					"latency_ms": {
+						"example": 169,
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": ["id", "model", "answers", "latency_ms"],
+				"additionalProperties": false
+			},
+			"DecisionRequest": {
+				"type": "object",
+				"properties": {
+					"model": {
+						"description": "A model ID from `GET /v1/models`.",
+						"example": "ms-decide-mini",
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 128
+					},
+					"state": {
+						"description": "The clinical state to decide on: any JSON value, such as a note or a structured record.",
+						"example": {
+							"anlass": "Thoraxschmerz seit 2 Stunden",
+							"alter": 67,
+							"vitalwerte": {
+								"rr": "160/95",
+								"puls": 104
+							}
+						}
+					},
+					"questions": {
+						"description": "1 to 64 questions, keyed by your question ID.",
+						"type": "object",
+						"propertyNames": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 128
+						},
+						"additionalProperties": {
+							"type": "object",
+							"properties": {
+								"type": {
+									"description": "`noul`: a yes-or-no statement; the answer is the probability that it is true. `choice`: one of 2 to 255 options. `score`: a level on a scale of 2 to 16 levels, numbered from 0 in the order of `criteria`.",
+									"type": "string",
+									"enum": ["noul", "choice", "score"]
+								},
+								"instructions": {
+									"description": "The question. Without it the question ID is used.",
+									"example": "Muss der Patient heute noch gesehen werden?",
+									"type": "string"
+								},
+								"criteria": {
+									"description": "`noul`: `{true, false}` descriptions. `choice`: `{option: description}`, 2 to 255 entries. `score`: level descriptions, 2 to 16.",
+									"anyOf": [
+										{
+											"type": "object",
+											"properties": {
+												"true": {
+													"type": "string"
+												},
+												"false": {
+													"type": "string"
+												}
+											}
+										},
+										{
+											"type": "object",
+											"propertyNames": {
+												"type": "string"
+											},
+											"additionalProperties": {
+												"type": "string"
+											}
+										},
+										{
+											"minItems": 2,
+											"maxItems": 16,
+											"type": "array",
+											"items": {
+												"type": "string"
+											}
+										}
+									]
+								}
+							},
+							"required": ["type"]
+						}
+					},
+					"images": {
+						"description": "Up to 4 data URLs (PNG, JPEG, WebP), 10 MB each. `ms-decide-mini` accepts no images.",
+						"maxItems": 4,
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"metadata": {
+						"description": "Up to 8 entries. Only `purpose` is logged.",
+						"type": "object",
+						"propertyNames": {
+							"type": "string",
+							"maxLength": 64
+						},
+						"additionalProperties": {
+							"type": "string",
+							"maxLength": 256
+						}
+					}
+				},
+				"required": ["model", "state", "questions"]
+			},
+			"DecisionBatch": {
+				"description": "One entry per request, in request order.",
+				"type": "object",
+				"properties": {
+					"responses": {
+						"type": "array",
+						"items": {
+							"anyOf": [
+								{
+									"$ref": "#/components/schemas/Decision"
+								},
+								{
+									"type": "object",
+									"properties": {
+										"error": {
+											"type": "object",
+											"properties": {
+												"status": {
+													"type": "integer",
+													"minimum": -9007199254740991,
+													"maximum": 9007199254740991
+												},
+												"message": {
+													"type": "string"
+												}
+											},
+											"required": ["status", "message"],
+											"additionalProperties": false
+										}
+									},
+									"required": ["error"],
+									"additionalProperties": false
+								}
+							]
+						}
+					}
+				},
+				"required": ["responses"],
+				"additionalProperties": false
+			},
+			"DecisionBatchRequest": {
+				"type": "object",
+				"properties": {
+					"requests": {
+						"minItems": 1,
+						"maxItems": 64,
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/DecisionRequest"
+						}
+					}
+				},
+				"required": ["requests"]
+			},
+			"Letter": {
+				"description": "A draft. A clinician reviews and releases it.",
+				"type": "object",
+				"properties": {
+					"status": {
+						"description": "Always `success`. A letter that fails is an error answer, 503 `service_unavailable`, and is not billed.",
+						"type": "string",
+						"enum": ["success"]
+					},
+					"message": {
+						"example": "Letter sections generated successfully",
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"sections": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"name": {
+									"example": "Diagnosen",
+									"type": "string"
+								},
+								"content": {
+									"example": "- Arterielle Hypertonie (I10.90)",
+									"type": "string"
+								},
+								"enabled": {
+									"type": "boolean"
+								},
+								"order": {
+									"type": "integer",
+									"minimum": -9007199254740991,
+									"maximum": 9007199254740991
+								}
+							},
+							"required": ["name", "content", "enabled", "order"],
+							"additionalProperties": false
+						}
+					},
+					"encounter_id": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"required": ["status", "message", "sections", "encounter_id"],
+				"additionalProperties": false
+			},
+			"InputDocument": {
+				"type": "object",
+				"properties": {
+					"document_id": {
+						"example": "doc_7781",
+						"type": "string"
+					},
+					"title": {
+						"example": "Entlassbrief Kardiologie 09/2026",
+						"type": "string"
+					},
+					"markdown": {
+						"description": "The document text as Markdown. At most 20,000 characters are read.",
+						"type": "string"
+					},
+					"language": {
+						"example": "de",
+						"type": "string"
+					},
+					"origin": {
+						"type": "string",
+						"enum": ["prior", "current"]
+					}
+				},
+				"required": ["document_id"]
+			},
+			"CreateLetterRequest": {
+				"type": "object",
+				"properties": {
+					"notes": {
+						"description": "The clinical notes the letter is written from.",
+						"example": "67 J., w. Hypertonie seit 2019. RR 145/90. Ramipril 5 mg 1-0-0.",
+						"type": "string"
+					},
+					"custom_template": {
+						"type": "object",
+						"properties": {
+							"name": {
+								"example": "Arztbrief Hausarzt",
+								"type": "string"
+							},
+							"description": {
+								"type": "string"
+							},
+							"sections": {
+								"type": "array",
+								"items": {
+									"type": "object",
+									"properties": {
+										"name": {
+											"example": "Diagnosen",
+											"type": "string"
+										},
+										"description": {
+											"example": "Alle Diagnosen mit ICD-10-GM-Code",
+											"type": "string"
+										},
+										"formatting_instruction": {
+											"default": "bullet_points",
+											"type": "string",
+											"enum": ["bullet_points", "plaintext"]
+										}
+									},
+									"required": ["name", "description"]
+								}
+							}
+						},
+						"required": ["name", "sections"]
+					},
+					"language": {
+						"default": "de",
+						"type": "string",
+						"enum": ["de", "en"]
+					},
+					"additional_context": {
+						"description": "Extra instructions for this letter.",
+						"type": "string"
+					},
+					"documents": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/InputDocument"
+						}
+					},
+					"grounding": {
+						"type": "object",
+						"properties": {
+							"enabled": {
+								"default": true,
+								"type": "boolean"
+							},
+							"version": {
+								"anyOf": [
+									{
+										"type": "string",
+										"enum": ["v1", "v2"]
+									},
+									{
+										"type": "null"
+									}
+								]
+							}
+						}
+					},
+					"encounter_id": {
+						"description": "Your ID for the patient encounter, 1 to 128 characters: letters, digits, `.`, `_`, `:` or `-`. Calls 1 to 3 with the same ID and the same transcript are billed as one encounter. The count resets 30 days after the last call.",
+						"example": "enc_2026-11-03_4711",
+						"type": "string",
+						"pattern": "^[A-Za-z0-9._:-]{1,128}$"
+					}
+				},
+				"required": ["notes", "custom_template"]
+			},
+			"ModelList": {
+				"type": "object",
+				"properties": {
+					"data": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"example": "ms-decide-mini",
+									"type": "string"
+								},
+								"api": {
+									"description": "The API that runs the model.",
+									"type": "string",
+									"enum": ["speech", "notes", "coding", "decisions"]
+								},
+								"base": {
+									"description": "The model the ID runs on.",
+									"type": "string"
+								},
+								"owned_by": {
+									"type": "string"
+								}
+							},
+							"required": ["id", "api", "base", "owned_by"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["data"],
+				"additionalProperties": false
+			},
+			"Note": {
+				"description": "A draft. A clinician reviews and releases it.",
+				"type": "object",
+				"properties": {
+					"encounter_id": {
+						"example": "enc_2026-11-03_4711",
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"model": {
+						"description": "The model that read the transcript. Set also when every field comes back `not_mentioned`. When no field went to a model (for example every field has source `system`, or `sections` selects none), no model ran and this can be empty.",
+						"type": "string"
+					},
+					"fields": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"example": "blutdruck_sys",
+									"type": "string"
+								},
+								"state": {
+									"type": "string",
+									"enum": ["value", "affirmed", "negated", "not_mentioned"]
+								},
+								"value": {
+									"description": "Type follows the field type.",
+									"example": 145
+								},
+								"detail": {
+									"anyOf": [
+										{
+											"type": "string"
+										},
+										{
+											"type": "null"
+										}
+									]
+								},
+								"evidence": {
+									"maxItems": 3,
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"quote": {
+												"example": "Blutdruck 145 zu 90",
+												"type": "string"
+											},
+											"segment": {
+												"description": "0-based segment index.",
+												"example": 12,
+												"anyOf": [
+													{
+														"type": "integer",
+														"minimum": -9007199254740991,
+														"maximum": 9007199254740991
+													},
+													{
+														"type": "null"
+													}
+												]
+											}
+										},
+										"required": ["quote", "segment"],
+										"additionalProperties": false
+									}
+								},
+								"confidence": {
+									"example": 0.88,
+									"type": "number",
+									"minimum": 0,
+									"maximum": 1
+								}
+							},
+							"required": ["id", "state", "value", "detail", "evidence", "confidence"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["encounter_id", "model", "fields"],
+				"additionalProperties": false
+			},
+			"Form": {
+				"description": "The template: sections and fields to fill. The number of fields has no limit of its own; a large form takes several model calls. The request body can be at most 5 MiB.",
+				"type": "object",
+				"properties": {
+					"version": {
+						"default": 1,
+						"type": "number",
+						"const": 1
+					},
+					"sections": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {
+									"example": "anamnese",
+									"type": "string"
+								},
+								"title": {
+									"example": "Anamnese",
+									"type": "string"
+								},
+								"fields": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"id": {
+												"description": "Unique within the form.",
+												"example": "blutdruck_sys",
+												"type": "string"
+											},
+											"label": {
+												"example": "Blutdruck systolisch",
+												"type": "string"
+											},
+											"type": {
+												"description": "Other types are returned as `not_mentioned`.",
+												"default": "text",
+												"type": "string",
+												"enum": ["text", "textarea", "boolean", "choice", "multi_choice", "number", "date"]
+											},
+											"source": {
+												"description": "Where the value comes from: `conversation` (what was said, the default), `measurement` (a measured value said aloud) or `system` (your system fills it, such as the patient name; never filled here).",
+												"default": "conversation",
+												"type": "string",
+												"enum": ["conversation", "measurement", "system"]
+											},
+											"options": {
+												"description": "For `choice`, `multi_choice` and `boolean`.",
+												"type": "array",
+												"items": {
+													"type": "object",
+													"properties": {
+														"value": {
+															"example": "ja",
+															"type": "string"
+														},
+														"label": {
+															"example": "Ja",
+															"type": "string"
+														},
+														"insert_text": {
+															"type": "string"
+														}
+													},
+													"required": ["value"]
+												}
+											},
+											"unit": {
+												"example": "mmHg",
+												"type": "string"
+											},
+											"description": {
+												"description": "A hint for the model.",
+												"example": "Systolischer Wert in mmHg",
+												"type": "string"
+											},
+											"negation": {
+												"description": "Option values for yes and no on a `boolean` or `choice` field.",
+												"type": "object",
+												"properties": {
+													"affirmed": {
+														"type": "string"
+													},
+													"negated": {
+														"type": "string"
+													}
+												},
+												"required": ["affirmed", "negated"]
+											},
+											"detail_field": {
+												"type": "string"
+											},
+											"visible_if": {
+												"type": "object",
+												"properties": {
+													"field": {
+														"type": "string"
+													},
+													"equals": {}
+												},
+												"required": ["field", "equals"]
+											}
+										},
+										"required": ["id"]
+									}
+								},
+								"applies_to": {
+									"description": "Skip the section for patients outside these bounds.",
+									"type": "object",
+									"properties": {
+										"min_age": {
+											"type": "number"
+										},
+										"max_age": {
+											"type": "number"
+										},
+										"sex": {
+											"type": "string",
+											"enum": ["female", "male", "other"]
+										}
+									}
+								}
+							},
+							"required": ["id", "fields"]
+						}
+					}
+				},
+				"required": ["sections"]
+			},
+			"CreateNoteRequest": {
+				"type": "object",
+				"properties": {
+					"transcript": {
+						"description": "The conversation. Either plain text with one segment per line, or a list of segments. The `text` of a transcription result works as is.",
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "array",
+								"items": {
+									"type": "object",
+									"properties": {
+										"speaker": {
+											"example": "doctor",
+											"type": "string"
+										},
+										"text": {
+											"example": "Wie geht es Ihnen seit der letzten Kontrolle?",
+											"type": "string"
+										},
+										"start": {
+											"description": "Seconds.",
+											"example": 0,
+											"type": "number"
+										}
+									},
+									"required": ["text"]
+								}
+							}
+						]
+					},
+					"form": {
+						"$ref": "#/components/schemas/Form"
+					},
+					"language": {
+						"description": "Language of the output.",
+						"default": "de",
+						"type": "string",
+						"enum": ["de", "en"]
+					},
+					"sections": {
+						"description": "Section IDs to fill. The other sections come back as `not_mentioned`.",
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"patient": {
+						"description": "Used only to skip sections with `applies_to`. Never sent to the model.",
+						"type": "object",
+						"properties": {
+							"age_years": {
+								"example": 67,
+								"type": "number"
+							},
+							"sex": {
+								"description": "`female`, `male` or `other`; `w`, `m`, `d` also work.",
+								"example": "w",
+								"type": "string"
+							}
+						}
+					},
+					"context": {
+						"description": "Background for the model. Values are never copied from it.",
+						"type": "object",
+						"properties": {
+							"documents": {
+								"description": "At most 10 documents.",
+								"type": "array",
+								"items": {
+									"$ref": "#/components/schemas/InputDocument"
+								}
+							},
+							"prior_notes": {}
+						}
+					},
+					"wordbook": {
+						"description": "Spellings applied to the transcript before the model reads it. At most 60 entries.",
+						"maxItems": 60,
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"written": {
+									"example": "Ramipril",
+									"type": "string",
+									"maxLength": 120
+								},
+								"spoken": {
+									"example": ["Ramipril", "Rami Pril"],
+									"maxItems": 8,
+									"type": "array",
+									"items": {
+										"type": "string",
+										"maxLength": 120
+									}
+								}
+							},
+							"required": ["written"]
+						}
+					},
+					"encounter_id": {
+						"description": "Your ID for the patient encounter, 1 to 128 characters: letters, digits, `.`, `_`, `:` or `-`. Calls 1 to 3 with the same ID and the same transcript are billed as one encounter. The count resets 30 days after the last call.",
+						"example": "enc_2026-11-03_4711",
+						"type": "string",
+						"pattern": "^[A-Za-z0-9._:-]{1,128}$"
+					}
+				},
+				"required": ["transcript", "form"]
+			},
+			"Usage": {
+				"type": "object",
+				"properties": {
+					"object": {
+						"type": "string",
+						"const": "usage"
+					},
+					"starting_at": {
+						"format": "date-time",
+						"example": "2026-11-01T00:00:00.000Z",
+						"type": "string"
+					},
+					"ending_at": {
+						"format": "date-time",
+						"example": "2026-11-08T00:00:00.000Z",
+						"type": "string"
+					},
+					"data": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"date": {
+									"description": "UTC day.",
+									"example": "2026-11-03",
+									"type": "string"
+								},
+								"project_id": {
+									"example": "proj_01JBY2H3K5M7P9R1T3V5X7Z9B1",
+									"type": "string"
+								},
+								"product": {
+									"description": "`connect.*` counts one request per metered Connect call. Connect is billed per active user and connector, so these rows never appear in `/v1/costs`.",
+									"example": "speech.batch",
+									"type": "string",
+									"enum": [
+										"speech.batch",
+										"speech.live",
+										"speech.live_diarized",
+										"notes.note",
+										"notes.letter",
+										"coding.code",
+										"coding.search",
+										"decisions.request",
+										"connect.setup",
+										"connect.read",
+										"connect.billing_read",
+										"connect.plan",
+										"connect.transfer",
+										"connect.upload",
+										"connect.mapping_proposal"
+									]
+								},
+								"unit": {
+									"example": "audio_second",
+									"type": "string",
+									"enum": ["audio_second", "encounter", "request"]
+								},
+								"environment": {
+									"type": "string",
+									"enum": ["live", "test"]
+								},
+								"quantity": {
+									"example": 18432.6,
+									"type": "number"
+								}
+							},
+							"required": ["date", "project_id", "product", "unit", "environment", "quantity"],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": ["object", "starting_at", "ending_at", "data"],
+				"additionalProperties": false
+			}
+		}
+	}
+}

@@ -1,0 +1,1027 @@
+{
+  "cases": [
+    {
+      "name": "auth, version and user agent headers",
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/models",
+            "headers": {
+              "authorization": "Bearer msk_test_conformance",
+              "medisync-version": "2026-11-01",
+              "user-agent": "~^medisync-(typescript|python|java|dotnet)/0\\.1\\.0$",
+              "accept": "application/json"
+            },
+            "absentHeaders": [
+              "idempotency-key"
+            ],
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "version header from the client option",
+      "client": {
+        "version": "2027-01-01"
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "headers": {
+              "medisync-version": "2027-01-01"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "idempotency key made for a POST that takes one",
+      "call": {
+        "method": "coding.icd10gm",
+        "args": {
+          "path": [],
+          "body": {
+            "mentions": [
+              {
+                "id": "m1",
+                "text": "Vorhofflimmern, paroxysmal"
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/coding/icd10gm",
+            "headers": {
+              "idempotency-key": "~^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "content-type": "~^application/json"
+            },
+            "body": {
+              "mentions": [
+                {
+                  "id": "m1",
+                  "text": "Vorhofflimmern, paroxysmal"
+                }
+              ]
+            },
+            "problems": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "idempotency key given by the caller",
+      "call": {
+        "method": "notes.create",
+        "args": {
+          "path": [],
+          "body": {
+            "transcript": "Arzt: Wie geht es Ihnen?",
+            "form": {
+              "sections": [
+                {
+                  "id": "anamnese",
+                  "fields": [
+                    {
+                      "id": "beschwerden"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "options": {
+            "idempotencyKey": "note-key-0001"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "headers": {
+              "idempotency-key": "note-key-0001"
+            },
+            "problems": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "Connect POST carries a required idempotency key",
+      "call": {
+        "method": "connect.transfers.create",
+        "args": {
+          "path": [],
+          "body": {
+            "plan_id": "pln_AAAAAAAAAAAA",
+            "release": {
+              "released_by": {
+                "member_id": "mem_1"
+              },
+              "role": "doctor",
+              "patient_confirmed": {
+                "id": "10482"
+              },
+              "document_hash": "abc",
+              "released_at": "2026-11-16T09:00:00Z"
+            }
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/transfers",
+            "headers": {
+              "idempotency-key": "~^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "problems": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "no idempotency key on a GET",
+      "call": {
+        "method": "coding.search",
+        "args": {
+          "path": [],
+          "query": {
+            "q": "Hypertonie",
+            "limit": 5
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "path": "/v1/coding/search",
+            "query": {
+              "q": "Hypertonie",
+              "limit": "5"
+            },
+            "absentHeaders": [
+              "idempotency-key"
+            ],
+            "problems": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "path parameters are encoded",
+      "call": {
+        "method": "connect.sites.get",
+        "args": {
+          "path": [
+            "site/1 x"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "path": "/v1/connect/sites/site%2F1%20x"
+          }
+        ]
+      }
+    },
+    {
+      "name": "query arrays with explode false are comma-separated",
+      "call": {
+        "method": "connect.events.list",
+        "args": {
+          "path": [],
+          "query": {
+            "types": [
+              "transfer.completed",
+              "entry.filed"
+            ],
+            "limit": 2
+          }
+        },
+        "mode": "page"
+      },
+      "responses": [
+        {
+          "status": 200,
+          "body": {
+            "data": [],
+            "next_cursor": null
+          }
+        }
+      ],
+      "expect": {
+        "requests": [
+          {
+            "rawQuery": "~types=transfer\\.completed%2Centry\\.filed|types=transfer\\.completed,entry\\.filed",
+            "problems": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "429 with retry-after is retried after that many seconds with the same key",
+      "client": {
+        "maxRetries": 2
+      },
+      "call": {
+        "method": "coding.icd10gm",
+        "args": {
+          "path": [],
+          "body": {
+            "mentions": [
+              {
+                "id": "m1",
+                "text": "Hypertonie"
+              }
+            ]
+          }
+        }
+      },
+      "responses": [
+        {
+          "status": 429,
+          "headers": {
+            "retry-after": "2"
+          },
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "rate_limit_error",
+              "code": "rate_limit_exceeded",
+              "message": "Mock error.",
+              "request_id": "req_case_1",
+              "param": null
+            },
+            "request_id": "req_case_1"
+          }
+        },
+        {
+          "status": 200,
+          "body": {
+            "results": []
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 2,
+        "sameHeaderAcrossRequests": "idempotency-key",
+        "sleepsMs": [
+          2000
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "503 on a GET is retried with backoff",
+      "client": {
+        "maxRetries": 2
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 503,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "overloaded_error",
+              "code": "service_unavailable",
+              "message": "Mock error.",
+              "request_id": "req_case_1",
+              "param": null
+            },
+            "request_id": "req_case_1"
+          }
+        },
+        {
+          "status": 503,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "overloaded_error",
+              "code": "service_unavailable",
+              "message": "Mock error.",
+              "request_id": "req_case_1",
+              "param": null
+            },
+            "request_id": "req_case_1"
+          }
+        },
+        {
+          "status": 200,
+          "body": {
+            "data": []
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 3,
+        "sleepsMs": [
+          {
+            "min": 300,
+            "max": 600
+          },
+          {
+            "min": 700,
+            "max": 1100
+          }
+        ],
+        "result": {
+          "fields": {
+            "data": []
+          }
+        }
+      }
+    },
+    {
+      "name": "408 is retried",
+      "client": {
+        "maxRetries": 1
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 408,
+          "text": "timeout"
+        },
+        {
+          "status": 200,
+          "body": {
+            "data": []
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 2
+      }
+    },
+    {
+      "name": "409 idempotency_key_in_use is retried",
+      "client": {
+        "maxRetries": 2
+      },
+      "call": {
+        "method": "letters.create",
+        "args": {
+          "path": [],
+          "body": {
+            "notes": "67 J., w. Hypertonie seit 2019. RR 145/90. Ramipril 5 mg 1-0-0.",
+            "custom_template": {
+              "name": "Arztbrief Hausarzt",
+              "sections": [
+                {
+                  "name": "Diagnosen",
+                  "description": "Alle Diagnosen mit ICD-10-GM-Code"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "responses": [
+        {
+          "status": 409,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "conflict_error",
+              "code": "idempotency_key_in_use",
+              "message": "Mock error.",
+              "request_id": "req_case_1",
+              "param": null
+            },
+            "request_id": "req_case_1"
+          }
+        },
+        {
+          "status": 200,
+          "body": {
+            "sections": []
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 2,
+        "sameHeaderAcrossRequests": "idempotency-key",
+        "requests": [
+          {
+            "problems": []
+          },
+          {
+            "problems": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "another 409 is not retried",
+      "client": {
+        "maxRetries": 2
+      },
+      "call": {
+        "method": "connect.transfers.create",
+        "args": {
+          "path": [],
+          "body": {
+            "plan_id": "pln_1",
+            "release": {
+              "released_by": {
+                "member_id": "mem_1"
+              },
+              "role": "doctor",
+              "patient_confirmed": {
+                "id": "1"
+              },
+              "document_hash": "h",
+              "released_at": "2026-11-16T09:00:00Z"
+            }
+          }
+        }
+      },
+      "responses": [
+        {
+          "status": 409,
+          "body": {
+            "error": {
+              "type": "conflict_error",
+              "code": "already_transferred",
+              "message": "Mock error.",
+              "request_id": "req_case_1"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "AlreadyTransferredError",
+          "status": 409,
+          "code": "already_transferred",
+          "requestId": "req_case_1"
+        }
+      }
+    },
+    {
+      "name": "spend cap 429 is not retried",
+      "client": {
+        "maxRetries": 2
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 429,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "rate_limit_error",
+              "code": "spend_cap_reached",
+              "message": "Mock error.",
+              "request_id": "req_case_1",
+              "param": null
+            },
+            "request_id": "req_case_1"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "RateLimitError",
+          "code": "spend_cap_reached"
+        }
+      }
+    },
+    {
+      "name": "retries stop after maxRetries",
+      "client": {
+        "maxRetries": 2
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 500,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "api_error",
+              "code": "internal_error",
+              "message": "Mock error.",
+              "request_id": "req_case_1",
+              "param": null
+            },
+            "request_id": "req_case_1"
+          }
+        },
+        {
+          "status": 500,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "api_error",
+              "code": "internal_error",
+              "message": "Mock error.",
+              "request_id": "req_case_1",
+              "param": null
+            },
+            "request_id": "req_case_1"
+          }
+        },
+        {
+          "status": 500,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "api_error",
+              "code": "internal_error",
+              "message": "Mock error.",
+              "request_id": "req_case_1",
+              "param": null
+            },
+            "request_id": "req_case_1"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 3,
+        "error": {
+          "class": "InternalServerError",
+          "status": 500,
+          "code": "internal_error"
+        }
+      }
+    },
+    {
+      "name": "a PATCH without an idempotency key is not retried",
+      "client": {
+        "maxRetries": 2
+      },
+      "call": {
+        "method": "connect.sites.update",
+        "args": {
+          "path": [
+            "site_1"
+          ],
+          "body": {
+            "name": "Praxis Beispiel"
+          }
+        }
+      },
+      "responses": [
+        {
+          "status": 503,
+          "body": {
+            "error": {
+              "type": "api_error",
+              "code": "unavailable",
+              "message": "Mock error.",
+              "request_id": "req_case_1"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "ServiceUnavailableError",
+          "status": 503
+        }
+      }
+    },
+    {
+      "name": "retry_after in a Connect error body is honoured",
+      "client": {
+        "maxRetries": 1
+      },
+      "call": {
+        "method": "connect.systems.list",
+        "args": {
+          "path": []
+        },
+        "mode": "page"
+      },
+      "responses": [
+        {
+          "status": 429,
+          "body": {
+            "error": {
+              "type": "rate_limit_error",
+              "code": "rate_limited",
+              "message": "Mock error.",
+              "request_id": "req_case_1",
+              "retry_after": 3
+            }
+          }
+        },
+        {
+          "status": 200,
+          "body": {
+            "data": [],
+            "next_cursor": null
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 2,
+        "sleepsMs": [
+          3000
+        ]
+      }
+    },
+    {
+      "name": "retryable false is not retried",
+      "client": {
+        "maxRetries": 2
+      },
+      "call": {
+        "method": "connect.systems.get",
+        "args": {
+          "path": [
+            "duria"
+          ]
+        }
+      },
+      "responses": [
+        {
+          "status": 502,
+          "body": {
+            "error": {
+              "type": "target_error",
+              "code": "target_refused",
+              "message": "Mock error.",
+              "request_id": "req_case_1",
+              "retryable": false,
+              "target_error": {
+                "vendor_code": "E42",
+                "message": "Refused."
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "TargetError",
+          "status": 502,
+          "code": "target_refused"
+        }
+      }
+    },
+    {
+      "name": "a list answers its first page",
+      "call": {
+        "method": "connect.sites.list",
+        "args": {
+          "path": [],
+          "query": {
+            "limit": 2
+          }
+        },
+        "mode": "page"
+      },
+      "responses": [
+        {
+          "status": 200,
+          "body": {
+            "data": [
+              {
+                "id": "site_a"
+              },
+              {
+                "id": "site_b"
+              }
+            ],
+            "next_cursor": "cur_2"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "result": {
+          "pageIds": [
+            "site_a",
+            "site_b"
+          ],
+          "nextCursor": "cur_2"
+        }
+      }
+    },
+    {
+      "name": "iterating a list reads every page",
+      "call": {
+        "method": "connect.sites.list",
+        "args": {
+          "path": [],
+          "query": {
+            "limit": 2
+          }
+        },
+        "mode": "iterate"
+      },
+      "responses": [
+        {
+          "status": 200,
+          "body": {
+            "data": [
+              {
+                "id": "site_a"
+              },
+              {
+                "id": "site_b"
+              }
+            ],
+            "next_cursor": "cur_2"
+          }
+        },
+        {
+          "status": 200,
+          "body": {
+            "data": [
+              {
+                "id": "site_c"
+              }
+            ],
+            "next_cursor": null
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 2,
+        "requests": [
+          {
+            "query": {
+              "limit": "2"
+            },
+            "absentQuery": [
+              "cursor"
+            ]
+          },
+          {
+            "query": {
+              "limit": "2",
+              "cursor": "cur_2"
+            }
+          }
+        ],
+        "result": {
+          "items": [
+            "site_a",
+            "site_b",
+            "site_c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "batch transcription uploads multipart with form fields",
+      "call": {
+        "method": "audio.transcriptions.create",
+        "args": {
+          "path": [],
+          "body": {
+            "file": {
+              "$file": {
+                "filename": "visit.wav",
+                "bytes": 3200
+              }
+            },
+            "language": "de",
+            "diarization": true,
+            "max_speakers": 2
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/audio/transcriptions",
+            "headers": {
+              "content-type": "~^multipart/form-data",
+              "idempotency-key": "~^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "multipart": {
+              "language": "de",
+              "diarization": "true",
+              "max_speakers": "2",
+              "file": {
+                "filename": "visit.wav",
+                "size": 3200
+              }
+            },
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "Connect upload is multipart with its idempotency key",
+      "call": {
+        "method": "connect.uploads.create",
+        "args": {
+          "path": [],
+          "body": {
+            "file": {
+              "$file": {
+                "filename": "befund.pdf",
+                "bytes": 1024
+              }
+            },
+            "purpose": "document_attach",
+            "site_id": "site_1"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "path": "/v1/connect/uploads",
+            "headers": {
+              "idempotency-key": "~^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "multipart": {
+              "purpose": "document_attach",
+              "site_id": "site_1",
+              "file": {
+                "filename": "befund.pdf",
+                "size": 1024
+              }
+            },
+            "problems": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "a binary answer is returned as bytes",
+      "call": {
+        "method": "connect.documents.getContent",
+        "args": {
+          "path": [
+            "con_1",
+            "doc_1"
+          ],
+          "query": {
+            "member_id": "mem_1"
+          }
+        }
+      },
+      "responses": [
+        {
+          "status": 200,
+          "base64": "JVBERi0xLjcKJcfs"
+        }
+      ],
+      "expect": {
+        "requests": [
+          {
+            "headers": {
+              "accept": "*/*"
+            }
+          }
+        ],
+        "result": {
+          "bytes": 12
+        }
+      }
+    },
+    {
+      "name": "a 204 answer returns nothing",
+      "call": {
+        "method": "connect.agents.revoke",
+        "args": {
+          "path": [
+            "agt_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "DELETE",
+            "path": "/v1/connect/agents/agt_1"
+          }
+        ],
+        "result": {
+          "null": true
+        }
+      }
+    },
+    {
+      "name": "the AsyncAPI document is returned as text",
+      "call": {
+        "method": "specs.asyncapi",
+        "args": {
+          "path": []
+        }
+      },
+      "expect": {
+        "result": {
+          "textStarts": "asyncapi: 3.0.0"
+        }
+      }
+    },
+    {
+      "name": "iterating ends at an empty page, as the event feed always sends a cursor",
+      "call": {
+        "method": "connect.events.list",
+        "args": {
+          "path": [],
+          "query": {
+            "site_id": "ste_1"
+          }
+        },
+        "mode": "iterate"
+      },
+      "responses": [
+        {
+          "status": 200,
+          "body": {
+            "data": [
+              {
+                "id": "evt_1",
+                "type": "entry.filed"
+              }
+            ],
+            "next_cursor": "e1"
+          }
+        },
+        {
+          "status": 200,
+          "body": {
+            "data": [],
+            "next_cursor": "e1"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 2,
+        "requests": [
+          {
+            "query": {
+              "site_id": "ste_1"
+            }
+          },
+          {
+            "query": {
+              "site_id": "ste_1",
+              "cursor": "e1"
+            }
+          }
+        ],
+        "result": {
+          "items": [
+            "evt_1"
+          ]
+        }
+      }
+    }
+  ]
+}

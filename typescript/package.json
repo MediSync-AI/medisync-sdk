@@ -1,0 +1,64 @@
+{
+  "name": "medisync",
+  "version": "0.1.0",
+  "description": "TypeScript and JavaScript SDK for the MediSync API: speech, notes, ICD-10-GM coding, decisions and MediSync Connect",
+  "license": "Apache-2.0",
+  "homepage": "https://docs.medisync.me",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MediSync-AI/medisync-sdk.git",
+    "directory": "typescript"
+  },
+  "keywords": [
+    "medisync",
+    "speech-to-text",
+    "clinical-notes",
+    "icd-10-gm",
+    "pvs",
+    "kis"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "conformance": "tsx --test conformance/*.test.ts",
+    "check:package": "node scripts/check-package.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/ws": "8.18.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "ws": "8.18.3"
+  }
+}

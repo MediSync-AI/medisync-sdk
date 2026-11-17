@@ -1,0 +1,131 @@
+# Publishes the TypeScript package for a tag typescript-v<version>: first every check, then npm
+# (trusted publishing, OIDC, with provenance), then JSR (OIDC). A prerelease version
+# (0.2.0-beta.1) goes to the dist-tag `beta`.
+#
+# The leak check reads the Connect contract and the name list at release time through the
+# read-only deploy key CONNECT_DEPLOY_KEY (a secret). Neither file is stored in this repository.
+name: Release TypeScript
+
+on:
+  push:
+    tags: ['typescript-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-typescript
+  cancel-in-progress: false
+
+env:
+  BUN_VERSION: 1.4.0
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      dist_tag: ${{ steps.version.outputs.dist_tag }}
+    defaults:
+      run:
+        working-directory: typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: typescript/package-lock.json
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: The tag equals the package version
+        id: version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          jsr="$(node -p "require('./jsr.json').version")"
+          tag="${GITHUB_REF_NAME#typescript-v}"
+          if [ "$tag" != "$version" ] || [ "$jsr" != "$version" ]; then
+            echo "Tag $GITHUB_REF_NAME, package.json $version, jsr.json $jsr: they must agree." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          case "$version" in *-*) echo "dist_tag=beta" >> "$GITHUB_OUTPUT" ;; *) echo "dist_tag=latest" >> "$GITHUB_OUTPUT" ;; esac
+      - run: npm ci
+      - run: bun install --frozen-lockfile
+        working-directory: .
+      - name: Generated code is up to date
+        run: bun run generate:check
+        working-directory: .
+      - run: npm run lint
+      - name: Unit and parity tests
+        run: npm test
+      - name: Conformance
+        run: npm run conformance
+      - run: npm run build
+      - run: npm run check:package
+      - name: Pack
+        run: npm pack --pack-destination ../out
+      - name: Contract and name list of MediSync Connect (read-only deploy key, never stored in this repo)
+        uses: actions/checkout@v4
+        with:
+          repository: MediSync-AI/medisync-connect
+          ref: dev
+          ssh-key: ${{ secrets.CONNECT_DEPLOY_KEY }}
+          path: .connect-ref
+          fetch-depth: 1
+          sparse-checkout: |
+            /api/openapi.yaml
+            /release/public-names.txt
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Leak check
+        working-directory: .
+        env:
+          CONNECT_REPO: ${{ github.workspace }}/.connect-ref
+          CONNECT_REF: HEAD
+        run: |
+          bun release/leak-check.ts out/medisync-${{ steps.version.outputs.version }}.tgz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-tarball
+          path: out/medisync-${{ steps.version.outputs.version }}.tgz
+          if-no-files-found: error
+
+  npm:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: npm 11.5 or later (trusted publishing)
+        run: npm install -g npm@^11.5.1
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-tarball
+      - name: Publish the checked tarball
+        run: npm publish ./medisync-${{ needs.verify.outputs.version }}.tgz --provenance --access public --tag ${{ needs.verify.outputs.dist_tag }}
+
+  jsr:
+    needs: [verify, npm]
+    runs-on: ubuntu-latest
+    environment: jsr
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Publish to JSR
+        run: npx --yes jsr publish

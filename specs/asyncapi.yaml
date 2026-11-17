@@ -1,0 +1,685 @@
+asyncapi: 3.0.0
+info:
+  title: MediSync live transcription
+  version: "2026-11-01"
+  description: |
+    The live speech-to-text WebSocket of the MediSync API.
+
+    The client sends a `config` text frame within 10 seconds of the upgrade, then binary audio
+    frames. The server sends `session_ready`, then one `transcript` per finished segment.
+    Every transcript is final. To end a stream, send `end_utterance` and keep reading. The server
+    answers `ack`; transcripts for the audio it still held can arrive after the ack. Stop when a
+    transcript's `segment.end` reaches the ack's `processed_until`, or when nothing has arrived for
+    3 seconds (the last stretch was silence), then send `close`.
+
+    A refused handshake is an HTTP response with the usual error body, not a WebSocket close.
+    Close codes: 1000 normal end, 1003 `unsupported_audio`, 1008 with the error code as the
+    reason (`config_timeout`, `config_invalid`, `max_duration_reached`, `audio_too_fast`,
+    `test_daily_limit_reached` and others), 1009 frame larger than 1 MiB, 1011 speech service
+    failure, 1012 `service_restart`.
+
+    Generated output is a draft that a clinician reviews and releases.
+  contact:
+    name: MediSync API support
+    email: support@medisync.me
+defaultContentType: application/json
+
+servers:
+  production:
+    host: api.medisync.me
+    protocol: wss
+    description: Production, Frankfurt (AWS eu-central-1). Test and live keys use the same server.
+    security:
+      - $ref: "#/components/securitySchemes/apiKey"
+      - $ref: "#/components/securitySchemes/streamToken"
+
+channels:
+  stream:
+    address: /v1/audio/stream
+    title: Live transcription stream
+    description: One conversation per connection. Needs the `speech` scope. Counts against the concurrent stream limit of the project.
+    servers:
+      - $ref: "#/servers/production"
+    messages:
+      config:
+        $ref: "#/components/messages/config"
+      audio:
+        $ref: "#/components/messages/audio"
+      terms:
+        $ref: "#/components/messages/terms"
+      endUtterance:
+        $ref: "#/components/messages/endUtterance"
+      close:
+        $ref: "#/components/messages/close"
+      sessionReady:
+        $ref: "#/components/messages/sessionReady"
+      transcript:
+        $ref: "#/components/messages/transcript"
+      ack:
+        $ref: "#/components/messages/ack"
+      language:
+        $ref: "#/components/messages/language"
+      speakerRoles:
+        $ref: "#/components/messages/speakerRoles"
+      backpressure:
+        $ref: "#/components/messages/backpressure"
+      status:
+        $ref: "#/components/messages/status"
+      error:
+        $ref: "#/components/messages/error"
+    bindings:
+      ws:
+        bindingVersion: 0.1.0
+        method: GET
+        headers:
+          type: object
+          properties:
+            Authorization:
+              type: string
+              description: "`Bearer msk_live_…` or `Bearer msk_test_…`. For calls from your server."
+        query:
+          type: object
+          properties:
+            token:
+              type: string
+              description: A single-use stream token (`mst_…`) from `POST /v1/audio/stream/tokens`. For browsers and apps.
+
+operations:
+  sendConfig:
+    action: send
+    title: Send the config
+    description: The first text frame, within 10 seconds of the upgrade.
+    channel:
+      $ref: "#/channels/stream"
+    messages:
+      - $ref: "#/channels/stream/messages/config"
+  sendAudio:
+    action: send
+    title: Send audio
+    description: Binary frames in the format of the config, up to 1 MiB each.
+    channel:
+      $ref: "#/channels/stream"
+    messages:
+      - $ref: "#/channels/stream/messages/audio"
+  sendControl:
+    action: send
+    title: Send a control message
+    channel:
+      $ref: "#/channels/stream"
+    messages:
+      - $ref: "#/channels/stream/messages/terms"
+      - $ref: "#/channels/stream/messages/endUtterance"
+      - $ref: "#/channels/stream/messages/close"
+  receiveResults:
+    action: receive
+    title: Receive server messages
+    channel:
+      $ref: "#/channels/stream"
+    messages:
+      - $ref: "#/channels/stream/messages/sessionReady"
+      - $ref: "#/channels/stream/messages/transcript"
+      - $ref: "#/channels/stream/messages/ack"
+      - $ref: "#/channels/stream/messages/language"
+      - $ref: "#/channels/stream/messages/speakerRoles"
+      - $ref: "#/channels/stream/messages/backpressure"
+      - $ref: "#/channels/stream/messages/status"
+      - $ref: "#/channels/stream/messages/error"
+
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      description: A secret API key in the `Authorization` header of the upgrade request.
+    streamToken:
+      type: httpApiKey
+      name: token
+      in: query
+      description: A single-use stream token. The handshake uses it up.
+
+  messages:
+    config:
+      name: config
+      title: Config
+      summary: Settings for the stream. Unknown keys are refused with `config_invalid`.
+      payload:
+        $ref: "#/components/schemas/Config"
+      examples:
+        - name: german-two-speakers
+          payload:
+            type: config
+            audio:
+              encoding: pcm_s16le
+              sample_rate: 16000
+              channels: 1
+            language: de
+            chunk:
+              strategy: balanced
+            diarization:
+              enabled: true
+              max_speakers: 2
+            speaker_roles: true
+
+    audio:
+      name: audio
+      title: Audio frame
+      summary: Raw `pcm_s16le` audio, or one complete WAV file per frame when `audio.encoding` is `wav`.
+      contentType: application/octet-stream
+      payload:
+        type: string
+        format: binary
+        maxLength: 1048576
+
+    terms:
+      name: terms
+      title: Terms
+      summary: Replaces the wordbook of this stream. An empty list removes it. No answer.
+      payload:
+        type: object
+        required: [type, terms]
+        properties:
+          type:
+            const: terms
+          terms:
+            type: array
+            maxItems: 500
+            items:
+              type: string
+              minLength: 2
+              maxLength: 80
+      examples:
+        - name: drug-names
+          payload:
+            type: terms
+            terms: [Ramipril, Bisoprolol, Vorhofflimmern]
+
+    endUtterance:
+      name: end_utterance
+      title: End utterance
+      summary: Flushes the audio the server holds. The server answers with `ack`.
+      payload:
+        type: object
+        required: [type]
+        properties:
+          type:
+            const: end_utterance
+      examples:
+        - name: flush
+          payload:
+            type: end_utterance
+
+    close:
+      name: close
+      title: Close
+      summary: Ends the stream at once. Audio not yet transcribed is lost.
+      payload:
+        type: object
+        required: [type]
+        properties:
+          type:
+            const: close
+      examples:
+        - name: close
+          payload:
+            type: close
+
+    sessionReady:
+      name: session_ready
+      title: Session ready
+      summary: Sent once after a valid config, with the settings in effect.
+      payload:
+        $ref: "#/components/schemas/SessionReady"
+      examples:
+        - name: ready
+          payload:
+            type: session_ready
+            session_id: 9f2c4e1a7b3d4c8e
+            effective:
+              language: de
+              diarization: true
+              max_speakers: 2
+              chunk:
+                strategy: balanced
+                target_seconds: 5.0
+                max_seconds: 20.0
+                vad_gated: true
+              model: ms-speech-2
+              word_timestamps: true
+              timeline_offset_seconds: 0.0
+              speaker_roles: true
+            server:
+              max_segment_seconds: 25.0
+              protocol_version: "2.0"
+            warnings: []
+
+    transcript:
+      name: transcript
+      title: Transcript
+      summary: One finished segment. Final; never replaced.
+      payload:
+        $ref: "#/components/schemas/Transcript"
+      examples:
+        - name: segment
+          payload:
+            type: transcript
+            seq: 3
+            segment:
+              start: 12.4
+              end: 16.85
+            language_detected: de
+            diarization_enabled: true
+            text: Seit gestern habe ich Druck auf der Brust.
+            words:
+              - { w: Seit, start: 12.4, end: 12.62 }
+              - { w: gestern, start: 12.62, end: 13.05 }
+              - { w: habe, start: 13.05, end: 13.3 }
+              - { w: ich, start: 13.3, end: 13.44 }
+              - { w: Druck, start: 13.44, end: 13.86 }
+              - { w: auf, start: 13.86, end: 14.02 }
+              - { w: der, start: 14.02, end: 14.15 }
+              - { w: Brust., start: 14.15, end: 16.85 }
+            processed_until: 16.85
+            speakers:
+              - speaker: speaker1
+                start: 12.4
+                end: 16.85
+                text: Seit gestern habe ich Druck auf der Brust.
+
+    ack:
+      name: ack
+      title: Ack
+      summary: Answer to `end_utterance`.
+      payload:
+        type: object
+        required: [type, processed_until]
+        properties:
+          type:
+            const: ack
+          processed_until:
+            type: number
+            description: >-
+              Seconds of audio the server has read. Transcripts for audio before this point can
+              still arrive after the ack. If the last stretch was silence, none does.
+      examples:
+        - name: ack
+          payload:
+            type: ack
+            processed_until: 34.85
+
+    language:
+      name: language
+      title: Language
+      summary: The language in use. Sent when it is set or changes.
+      payload:
+        type: object
+        required: [type, language, confidence, model, supported, source]
+        properties:
+          type:
+            const: language
+          language:
+            type: string
+            description: ISO 639-1 code.
+          confidence:
+            type: number
+            minimum: 0
+            maximum: 1
+          model:
+            type: string
+            description: The speech model used for this language.
+          supported:
+            type: boolean
+            description: "`false`: no transcripts follow."
+          source:
+            type: string
+            enum: [detected, hint, default, forced, requested]
+      examples:
+        - name: requested
+          payload:
+            type: language
+            language: de
+            confidence: 0.0
+            model: ms-speech-2
+            supported: true
+            source: requested
+
+    speakerRoles:
+      name: speaker_roles
+      title: Speaker roles
+      summary: Role per speaker label, when `speaker_roles` is on.
+      description: >-
+        Sent once one speaker is the doctor with a confidence of 0.75 or more, then when roles
+        change, and with `final` true after `end_utterance`. A short stream, or one with a single
+        voice, can end without this message.
+      payload:
+        type: object
+        required: [type, roles, final, seq]
+        properties:
+          type:
+            const: speaker_roles
+          roles:
+            type: object
+            additionalProperties:
+              $ref: "#/components/schemas/SpeakerRole"
+          final:
+            type: boolean
+            description: "`true` after `end_utterance` and at the idle timeout."
+          seq:
+            type: integer
+      examples:
+        - name: roles
+          payload:
+            type: speaker_roles
+            roles:
+              speaker0:
+                role: doctor
+                confidence: 0.96
+                probabilities: { doctor: 0.96, patient: 0.02, companion: 0.01, staff: 0.01, other: 0.0 }
+            final: false
+            seq: 1
+
+    backpressure:
+      name: backpressure
+      title: Backpressure
+      summary: The server is behind. Send audio at real-time speed.
+      payload:
+        type: object
+        required: [type, level, dropped_segments, queue_depth]
+        properties:
+          type:
+            const: backpressure
+          level:
+            type: string
+            examples: [warn]
+          dropped_segments:
+            type: integer
+          queue_depth:
+            type: integer
+      examples:
+        - name: warn
+          payload:
+            type: backpressure
+            level: warn
+            dropped_segments: 1
+            queue_depth: 64
+
+    status:
+      name: status
+      title: Status
+      summary: No frame for 120 seconds. The server closes the stream after this message.
+      payload:
+        type: object
+        required: [type, state]
+        properties:
+          type:
+            const: status
+          state:
+            type: string
+            enum: [idle_timeout]
+      examples:
+        - name: idle
+          payload:
+            type: status
+            state: idle_timeout
+
+    error:
+      name: error
+      title: Error
+      summary: A stream error. With `fatal` true, the stream closes after it.
+      payload:
+        type: object
+        required: [type, code, message, fatal]
+        properties:
+          type:
+            const: error
+          code:
+            type: string
+            enum:
+              - config_invalid
+              - config_timeout
+              - unsupported_model
+              - unavailable
+              - overloaded
+              - worker_lost
+              - service_unavailable
+              - session_conflict
+              - asr_failed
+              - language_unsupported
+              - unsupported_audio
+              - audio_too_fast
+              - max_duration_reached
+              - test_daily_limit_reached
+              - spend_cap_reached
+              - invalid_api_key
+              - api_key_revoked
+              - api_key_expired
+              - api_key_disabled
+              - account_suspended
+              - account_terminated
+              - ip_not_allowed
+              - test_access_disabled
+              - unknown_message
+          message:
+            type: string
+          param:
+            type: [string, "null"]
+            description: The config field or message field the error is about, as a path (`audio.sample_rate`). Null when there is none. Set by the gateway; errors from the speech service have null.
+          request_id:
+            type: [string, "null"]
+            description: The stream's request ID, the same as the `request-id` header of the handshake. Give it to support.
+          fatal:
+            type: boolean
+      examples:
+        - name: config_invalid
+          payload:
+            type: error
+            code: config_invalid
+            message: Unknown field chunk_strategy in the config. Did you mean chunk.strategy?
+            param: chunk_strategy
+            request_id: req_01JC0H3L5N7Q9S1U3W5Y7A9C1E
+            fatal: true
+        - name: unknown_message
+          payload:
+            type: error
+            code: unknown_message
+            message: Unknown message type end. Send end_utterance to flush, close to end the stream, or terms to set the wordbook.
+            param: type
+            request_id: req_01JC0H3L5N7Q9S1U3W5Y7A9C1E
+            fatal: false
+
+  schemas:
+    Config:
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type:
+          const: config
+        audio:
+          type: object
+          properties:
+            encoding:
+              type: string
+              enum: [pcm_s16le, wav]
+              default: pcm_s16le
+            sample_rate:
+              type: integer
+              minimum: 8000
+              maximum: 48000
+              default: 16000
+              description: Hz. Ignored for `wav`.
+            channels:
+              type: integer
+              minimum: 1
+              maximum: 2
+              default: 1
+        language:
+          type: [string, "null"]
+          default: null
+          description: ISO 639-1 code without region. Null detects the language.
+          examples: [de]
+        chunk:
+          type: object
+          properties:
+            strategy:
+              type: string
+              enum: [low_latency, balanced, high_throughput]
+              default: balanced
+            target_seconds:
+              type: number
+              minimum: 0.5
+              maximum: 25
+              description: Default from the strategy. Values outside 0.5 to 25 are clamped.
+            max_seconds:
+              type: number
+              minimum: 0.5
+              maximum: 25
+              description: Default from the strategy. Values outside 0.5 to 25 are clamped.
+            vad_gated:
+              type: boolean
+              default: true
+        diarization:
+          type: object
+          properties:
+            enabled:
+              type: [boolean, "null"]
+              default: null
+              description: Null or false is off. On, the audio is billed as `speech.live_diarized`.
+            max_speakers:
+              type: integer
+              minimum: 1
+              maximum: 20
+              default: 2
+              description: The service separates at most 8 speakers. Values from 9 to 20 count as 8.
+        model:
+          type: object
+          properties:
+            name:
+              type: string
+              enum: [ms-speech-2]
+              description: The speech model. Leave it out for ms-speech-2.
+            word_timestamps:
+              type: boolean
+              default: true
+        timeline_offset_seconds:
+          type: number
+          minimum: 0
+          default: 0
+          description: Seconds added to every timestamp.
+        speaker_roles:
+          type: boolean
+          default: false
+          description: Needs `diarization.enabled`.
+
+    SessionReady:
+      type: object
+      required: [type, session_id, effective, server, warnings]
+      properties:
+        type:
+          const: session_ready
+        session_id:
+          type: string
+        effective:
+          type: object
+          properties:
+            language:
+              type: [string, "null"]
+            diarization:
+              type: boolean
+            max_speakers:
+              type: [integer, "null"]
+            chunk:
+              type: object
+              properties:
+                strategy:
+                  type: string
+                target_seconds:
+                  type: number
+                max_seconds:
+                  type: number
+                vad_gated:
+                  type: boolean
+            model:
+              type: string
+            word_timestamps:
+              type: boolean
+            timeline_offset_seconds:
+              type: number
+            speaker_roles:
+              type: boolean
+        server:
+          type: object
+          properties:
+            max_segment_seconds:
+              type: number
+            protocol_version:
+              type: string
+        warnings:
+          type: array
+          items:
+            type: string
+
+    Transcript:
+      type: object
+      required: [type, seq, segment, text, words, diarization_enabled]
+      properties:
+        type:
+          const: transcript
+        seq:
+          type: integer
+        segment:
+          type: object
+          properties:
+            start:
+              type: number
+            end:
+              type: number
+        language_detected:
+          type: [string, "null"]
+        diarization_enabled:
+          type: boolean
+        text:
+          type: string
+        words:
+          type: array
+          items:
+            type: object
+            properties:
+              w:
+                type: string
+              start:
+                type: [number, "null"]
+              end:
+                type: [number, "null"]
+        processed_until:
+          type: number
+        speakers:
+          type: array
+          description: Only when diarization is on.
+          items:
+            type: object
+            properties:
+              speaker:
+                type: string
+                examples: [speaker0]
+              start:
+                type: number
+              end:
+                type: number
+              text:
+                type: string
+
+    SpeakerRole:
+      type: object
+      required: [role, confidence, probabilities]
+      properties:
+        role:
+          type: string
+          enum: [doctor, patient, companion, staff, other]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        probabilities:
+          type: object
+          additionalProperties:
+            type: number

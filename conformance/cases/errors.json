@@ -1,0 +1,949 @@
+{
+  "cases": [
+    {
+      "name": "error type invalid_request_error becomes InvalidRequestError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 400,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "invalid_request_error",
+              "code": "invalid_request",
+              "message": "Mock error.",
+              "request_id": "req_invalid_request",
+              "param": "form"
+            },
+            "request_id": "req_invalid_request"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "InvalidRequestError",
+          "status": 400,
+          "code": "invalid_request",
+          "type": "invalid_request_error",
+          "requestId": "req_invalid_request",
+          "param": "form"
+        }
+      }
+    },
+    {
+      "name": "error type authentication_error becomes AuthenticationError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 401,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "authentication_error",
+              "code": "invalid_api_key",
+              "message": "Mock error.",
+              "request_id": "req_invalid_api_key",
+              "param": null
+            },
+            "request_id": "req_invalid_api_key"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "AuthenticationError",
+          "status": 401,
+          "code": "invalid_api_key",
+          "type": "authentication_error",
+          "requestId": "req_invalid_api_key",
+          "param": null
+        }
+      }
+    },
+    {
+      "name": "error type permission_error becomes PermissionDeniedError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 403,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "permission_error",
+              "code": "missing_scope",
+              "message": "Mock error.",
+              "request_id": "req_missing_scope",
+              "param": null
+            },
+            "request_id": "req_missing_scope"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "PermissionDeniedError",
+          "status": 403,
+          "code": "missing_scope",
+          "type": "permission_error",
+          "requestId": "req_missing_scope",
+          "param": null
+        }
+      }
+    },
+    {
+      "name": "error type not_found_error becomes NotFoundError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 404,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "not_found_error",
+              "code": "not_found",
+              "message": "Mock error.",
+              "request_id": "req_not_found",
+              "param": null
+            },
+            "request_id": "req_not_found"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "NotFoundError",
+          "status": 404,
+          "code": "not_found",
+          "type": "not_found_error",
+          "requestId": "req_not_found",
+          "param": null
+        }
+      }
+    },
+    {
+      "name": "error type conflict_error becomes ConflictError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 409,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "conflict_error",
+              "code": "idempotency_key_in_use",
+              "message": "Mock error.",
+              "request_id": "req_idempotency_key_in_use",
+              "param": null
+            },
+            "request_id": "req_idempotency_key_in_use"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "ConflictError",
+          "status": 409,
+          "code": "idempotency_key_in_use",
+          "type": "conflict_error",
+          "requestId": "req_idempotency_key_in_use",
+          "param": null
+        }
+      }
+    },
+    {
+      "name": "error type request_too_large becomes RequestTooLargeError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 413,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "request_too_large",
+              "code": "file_too_large",
+              "message": "Mock error.",
+              "request_id": "req_file_too_large",
+              "param": null
+            },
+            "request_id": "req_file_too_large"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "RequestTooLargeError",
+          "status": 413,
+          "code": "file_too_large",
+          "type": "request_too_large",
+          "requestId": "req_file_too_large",
+          "param": null
+        }
+      }
+    },
+    {
+      "name": "error type rate_limit_error becomes RateLimitError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 429,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "rate_limit_error",
+              "code": "rate_limit_exceeded",
+              "message": "Mock error.",
+              "request_id": "req_rate_limit_exceeded",
+              "param": null
+            },
+            "request_id": "req_rate_limit_exceeded"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "RateLimitError",
+          "status": 429,
+          "code": "rate_limit_exceeded",
+          "type": "rate_limit_error",
+          "requestId": "req_rate_limit_exceeded",
+          "param": null
+        }
+      }
+    },
+    {
+      "name": "error type api_error becomes InternalServerError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 500,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "api_error",
+              "code": "internal_error",
+              "message": "Mock error.",
+              "request_id": "req_internal_error",
+              "param": null
+            },
+            "request_id": "req_internal_error"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "InternalServerError",
+          "status": 500,
+          "code": "internal_error",
+          "type": "api_error",
+          "requestId": "req_internal_error",
+          "param": null
+        }
+      }
+    },
+    {
+      "name": "error type overloaded_error becomes ServiceUnavailableError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 503,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "overloaded_error",
+              "code": "service_unavailable",
+              "message": "Mock error.",
+              "request_id": "req_service_unavailable",
+              "param": null
+            },
+            "request_id": "req_service_unavailable"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "ServiceUnavailableError",
+          "status": 503,
+          "code": "service_unavailable",
+          "type": "overloaded_error",
+          "requestId": "req_service_unavailable",
+          "param": null
+        }
+      }
+    },
+    {
+      "name": "error type timeout_error becomes GatewayTimeoutError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 504,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "timeout_error",
+              "code": "upstream_timeout",
+              "message": "Mock error.",
+              "request_id": "req_upstream_timeout",
+              "param": null
+            },
+            "request_id": "req_upstream_timeout"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "GatewayTimeoutError",
+          "status": 504,
+          "code": "upstream_timeout",
+          "type": "timeout_error",
+          "requestId": "req_upstream_timeout",
+          "param": null
+        }
+      }
+    },
+    {
+      "name": "error type target_error becomes TargetError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 502,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "target_error",
+              "code": "target_refused",
+              "message": "Mock error.",
+              "request_id": "req_target_refused",
+              "param": null
+            },
+            "request_id": "req_target_refused"
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "TargetError",
+          "status": 502,
+          "code": "target_refused",
+          "type": "target_error",
+          "requestId": "req_target_refused",
+          "param": null
+        }
+      }
+    },
+    {
+      "name": "Connect code verb_unsupported becomes NotSupportedError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "connect.connections.get",
+        "args": {
+          "path": [
+            "con_1"
+          ]
+        }
+      },
+      "responses": [
+        {
+          "status": 422,
+          "body": {
+            "error": {
+              "type": "capability_error",
+              "code": "verb_unsupported",
+              "message": "Mock error.",
+              "request_id": "req_verb_unsupported",
+              "verb": "diagnosis.write",
+              "reason": "system_cannot",
+              "alternative": "diagnosis.write.text"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "NotSupportedError",
+          "status": 422,
+          "code": "verb_unsupported",
+          "type": "capability_error",
+          "requestId": "req_verb_unsupported",
+          "verb": "diagnosis.write",
+          "reason": "system_cannot",
+          "alternative": "diagnosis.write.text"
+        }
+      }
+    },
+    {
+      "name": "Connect code verb_unverified becomes UnverifiedVerbError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "connect.connections.get",
+        "args": {
+          "path": [
+            "con_1"
+          ]
+        }
+      },
+      "responses": [
+        {
+          "status": 422,
+          "body": {
+            "error": {
+              "type": "capability_error",
+              "code": "verb_unverified",
+              "message": "Mock error.",
+              "request_id": "req_verb_unverified",
+              "verb": "record.write"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "UnverifiedVerbError",
+          "status": 422,
+          "code": "verb_unverified",
+          "type": "capability_error",
+          "requestId": "req_verb_unverified",
+          "verb": "record.write"
+        }
+      }
+    },
+    {
+      "name": "Connect code verb_not_granted becomes VerbNotGrantedError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "connect.connections.get",
+        "args": {
+          "path": [
+            "con_1"
+          ]
+        }
+      },
+      "responses": [
+        {
+          "status": 403,
+          "body": {
+            "error": {
+              "type": "capability_error",
+              "code": "verb_not_granted",
+              "message": "Mock error.",
+              "request_id": "req_verb_not_granted",
+              "verb": "record.write"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "VerbNotGrantedError",
+          "status": 403,
+          "code": "verb_not_granted",
+          "type": "capability_error",
+          "requestId": "req_verb_not_granted",
+          "verb": "record.write"
+        }
+      }
+    },
+    {
+      "name": "Connect code licence_required becomes LicenceRequiredError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "connect.connections.get",
+        "args": {
+          "path": [
+            "con_1"
+          ]
+        }
+      },
+      "responses": [
+        {
+          "status": 403,
+          "body": {
+            "error": {
+              "type": "licence_error",
+              "code": "licence_required",
+              "message": "Mock error.",
+              "request_id": "req_licence_required",
+              "licence": {
+                "connector": "duria",
+                "reason": "no_licence"
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "LicenceRequiredError",
+          "status": 403,
+          "code": "licence_required",
+          "type": "licence_error",
+          "requestId": "req_licence_required"
+        }
+      }
+    },
+    {
+      "name": "Connect code plan_stale becomes PlanStaleError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "connect.connections.get",
+        "args": {
+          "path": [
+            "con_1"
+          ]
+        }
+      },
+      "responses": [
+        {
+          "status": 409,
+          "body": {
+            "error": {
+              "type": "conflict_error",
+              "code": "plan_stale",
+              "message": "Mock error.",
+              "request_id": "req_plan_stale"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "PlanStaleError",
+          "status": 409,
+          "code": "plan_stale",
+          "type": "conflict_error",
+          "requestId": "req_plan_stale"
+        }
+      }
+    },
+    {
+      "name": "Connect code plan_expired becomes PlanExpiredError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "connect.connections.get",
+        "args": {
+          "path": [
+            "con_1"
+          ]
+        }
+      },
+      "responses": [
+        {
+          "status": 409,
+          "body": {
+            "error": {
+              "type": "conflict_error",
+              "code": "plan_expired",
+              "message": "Mock error.",
+              "request_id": "req_plan_expired"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "PlanExpiredError",
+          "status": 409,
+          "code": "plan_expired",
+          "type": "conflict_error",
+          "requestId": "req_plan_expired"
+        }
+      }
+    },
+    {
+      "name": "Connect code product_not_enabled becomes ProductNotEnabledError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "connect.connections.get",
+        "args": {
+          "path": [
+            "con_1"
+          ]
+        }
+      },
+      "responses": [
+        {
+          "status": 403,
+          "body": {
+            "error": {
+              "type": "permission_error",
+              "code": "product_not_enabled",
+              "message": "Mock error.",
+              "request_id": "req_product_not_enabled"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "ProductNotEnabledError",
+          "status": 403,
+          "code": "product_not_enabled",
+          "type": "permission_error",
+          "requestId": "req_product_not_enabled"
+        }
+      }
+    },
+    {
+      "name": "Connect code agent_offline becomes AgentOfflineError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "connect.connections.get",
+        "args": {
+          "path": [
+            "con_1"
+          ]
+        }
+      },
+      "responses": [
+        {
+          "status": 503,
+          "body": {
+            "error": {
+              "type": "api_error",
+              "code": "agent_offline",
+              "message": "Mock error.",
+              "request_id": "req_agent_offline"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "AgentOfflineError",
+          "status": 503,
+          "code": "agent_offline",
+          "type": "api_error",
+          "requestId": "req_agent_offline"
+        }
+      }
+    },
+    {
+      "name": "Connect code not_implemented becomes OperationNotImplementedError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "connect.connections.get",
+        "args": {
+          "path": [
+            "con_1"
+          ]
+        }
+      },
+      "responses": [
+        {
+          "status": 501,
+          "body": {
+            "error": {
+              "type": "api_error",
+              "code": "not_implemented",
+              "message": "Mock error.",
+              "request_id": "req_not_implemented"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "OperationNotImplementedError",
+          "status": 501,
+          "code": "not_implemented",
+          "type": "api_error",
+          "requestId": "req_not_implemented"
+        }
+      }
+    },
+    {
+      "name": "Connect code invalid_token becomes AuthenticationError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "connect.connections.get",
+        "args": {
+          "path": [
+            "con_1"
+          ]
+        }
+      },
+      "responses": [
+        {
+          "status": 401,
+          "body": {
+            "error": {
+              "type": "authentication_error",
+              "code": "invalid_token",
+              "message": "Mock error.",
+              "request_id": "req_invalid_token"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "AuthenticationError",
+          "status": 401,
+          "code": "invalid_token",
+          "type": "authentication_error",
+          "requestId": "req_invalid_token"
+        }
+      }
+    },
+    {
+      "name": "Connect code patient_mismatch becomes InvalidRequestError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "connect.connections.get",
+        "args": {
+          "path": [
+            "con_1"
+          ]
+        }
+      },
+      "responses": [
+        {
+          "status": 400,
+          "body": {
+            "error": {
+              "type": "invalid_request_error",
+              "code": "patient_mismatch",
+              "message": "Mock error.",
+              "request_id": "req_patient_mismatch"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "requestCount": 1,
+        "error": {
+          "class": "InvalidRequestError",
+          "status": 400,
+          "code": "patient_mismatch",
+          "type": "invalid_request_error",
+          "requestId": "req_patient_mismatch"
+        }
+      }
+    },
+    {
+      "name": "an unknown code falls back to the type",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 403,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "permission_error",
+              "code": "some_new_code",
+              "message": "Mock error.",
+              "request_id": "req_case_1",
+              "param": null
+            },
+            "request_id": "req_case_1"
+          }
+        }
+      ],
+      "expect": {
+        "error": {
+          "class": "PermissionDeniedError",
+          "code": "some_new_code"
+        }
+      }
+    },
+    {
+      "name": "a body without an error object falls back to the status, request id from the header",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "responses": [
+        {
+          "status": 404,
+          "headers": {
+            "request-id": "req_from_header"
+          },
+          "text": "Not here"
+        }
+      ],
+      "expect": {
+        "error": {
+          "class": "NotFoundError",
+          "status": 404,
+          "code": "unknown",
+          "requestId": "req_from_header"
+        }
+      }
+    },
+    {
+      "name": "a 422 with an unknown type is a CapabilityError",
+      "client": {
+        "maxRetries": 0
+      },
+      "call": {
+        "method": "connect.connections.get",
+        "args": {
+          "path": [
+            "con_1"
+          ]
+        }
+      },
+      "responses": [
+        {
+          "status": 422,
+          "body": {
+            "error": {
+              "code": "something_new",
+              "message": "x",
+              "request_id": "req_x"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "error": {
+          "class": "CapabilityError",
+          "status": 422
+        }
+      }
+    }
+  ]
+}

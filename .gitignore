@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.venv/
+.venv*/
+__pycache__/
+*.egg-info/
+build/
+target/
+bin/
+obj/
+.gradle/
+.env*
+*.tgz
+.test-build/

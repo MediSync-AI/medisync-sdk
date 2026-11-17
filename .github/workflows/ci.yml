@@ -1,0 +1,189 @@
+# Pull request checks: lint, unit tests and conformance per language, only where files changed.
+# Shared inputs (specs, generator, conformance) run every language.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUN_VERSION: 1.4.0
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      shared: ${{ steps.filter.outputs.shared }}
+      typescript: ${{ steps.filter.outputs.typescript }}
+      python: ${{ steps.filter.outputs.python }}
+      java: ${{ steps.filter.outputs.java }}
+      dotnet: ${{ steps.filter.outputs.dotnet }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared:
+              - 'specs/**'
+              - 'generator/**'
+              - 'conformance/**'
+              - 'release/**'
+              - 'package.json'
+              - 'bun.lock'
+              - '.github/workflows/ci.yml'
+            typescript:
+              - 'typescript/**'
+            python:
+              - 'python/**'
+            java:
+              - 'java/**'
+            dotnet:
+              - 'dotnet/**'
+
+  generator:
+    needs: changes
+    if: needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - name: Specs match SOURCE.json
+        run: bun run specs:check
+      - name: Generated code is up to date
+        run: bun run generate:check
+      - run: bun run test
+
+  typescript:
+    needs: changes
+    if: needs.changes.outputs.typescript == 'true' || needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+    defaults:
+      run:
+        working-directory: typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: typescript/package-lock.json
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run check:package
+      - name: Unit and parity tests
+        run: npm test
+      - name: Conformance
+        run: npm run conformance
+      - name: Conformance on Bun
+        if: matrix.node == 22
+        run: bun test --timeout 20000 ./conformance/conformance.test.ts
+      - uses: denoland/setup-deno@v2
+        if: matrix.node == 22
+        with:
+          deno-version: v2.x
+      - name: Conformance on Deno
+        if: matrix.node == 22
+        run: deno test --allow-all conformance/conformance.test.ts
+
+  python:
+    needs: changes
+    if: needs.changes.outputs.python == 'true' || needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.9', '3.13']
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: python/uv.lock
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Lint and types
+        if: matrix.python == '3.13'
+        run: |
+          uv sync --python 3.13 --locked
+          uv run ruff check src tests
+          uv run ruff format --check src tests
+          uv run mypy
+          uv run pyright
+      - name: Unit, parity and conformance tests
+        run: uv run --python ${{ matrix.python }} --isolated --no-dev --with pytest --with pytest-asyncio --with cryptography pytest -q
+
+  java:
+    needs: changes
+    if: needs.changes.outputs.java == 'true' || needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['11', '21']
+    defaults:
+      run:
+        working-directory: java
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Compile with -Werror, javadoc lint, unit, parity and conformance tests, jars
+        run: ./mvnw -B -ntp verify
+
+  dotnet:
+    needs: changes
+    if: needs.changes.outputs.dotnet == 'true' || needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: '1'
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    defaults:
+      run:
+        working-directory: dotnet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          cache: true
+          cache-dependency-path: dotnet/**/packages.lock.json
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Build (warnings as errors), unit, parity and conformance tests
+        run: dotnet test tests/MediSync.Tests -c Release
+      - name: Pack
+        run: dotnet pack src/MediSync -c Release -o ../dist/dotnet

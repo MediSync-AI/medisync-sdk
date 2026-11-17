@@ -1,0 +1,18 @@
+{
+  "ref": "origin/main",
+  "commit": "8b7f41c0746ee00ba31005c9c7b7ed1f72ad85c1",
+  "files": {
+    "openapi.json": {
+      "path": "apps/docs/specs/openapi.json",
+      "sha256": "f7217dc3ef803fc187f707f3d76350db8c2e6f328e6645b0b9695397e665d1f9"
+    },
+    "connect-openapi.json": {
+      "path": "apps/docs/specs/connect-openapi.json",
+      "sha256": "2cac371b37f1f911bf08bef92071bfbcf543b58ef720d4398530ca2605bd5beb"
+    },
+    "asyncapi.yaml": {
+      "path": "apps/docs/specs/asyncapi.yaml",
+      "sha256": "53a9cb47bcefaad24a55d64a0ad6309ce5fb08ca752fd06da06e53d11e9ef4f9"
+    }
+  }
+}

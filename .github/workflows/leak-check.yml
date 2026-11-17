@@ -1,0 +1,38 @@
+# The leak check on the tracked files of this repository, after every push to dev and on demand.
+# It also proves that the deploy key CONNECT_DEPLOY_KEY still reads the Connect contract.
+name: Leak check
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  leak-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - name: Contract and name list of MediSync Connect (read-only deploy key, never stored in this repo)
+        uses: actions/checkout@v4
+        with:
+          repository: MediSync-AI/medisync-connect
+          ref: dev
+          ssh-key: ${{ secrets.CONNECT_DEPLOY_KEY }}
+          path: .connect-ref
+          fetch-depth: 1
+          sparse-checkout: |
+            /api/openapi.yaml
+            /release/public-names.txt
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Leak check
+        env:
+          CONNECT_REPO: ${{ github.workspace }}/.connect-ref
+          CONNECT_REF: HEAD
+        run: bun release/leak-check.ts --repo

@@ -1,0 +1,2950 @@
+{
+  "generated": "generator/src/cases.ts; do not edit",
+  "cases": [
+    {
+      "name": "operation specs.asyncapi",
+      "call": {
+        "method": "specs.asyncapi",
+        "args": {
+          "path": []
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/asyncapi.yaml",
+            "problems": []
+          }
+        ],
+        "result": {
+          "text": true
+        }
+      }
+    },
+    {
+      "name": "operation audio.stream.tokens.create",
+      "call": {
+        "method": "audio.stream.tokens.create",
+        "args": {
+          "path": [],
+          "body": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/audio/stream/tokens",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation audio.transcriptions.create",
+      "call": {
+        "method": "audio.transcriptions.create",
+        "args": {
+          "path": [],
+          "body": {
+            "file": {
+              "$file": {
+                "filename": "sample.bin",
+                "bytes": 64
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/audio/transcriptions",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation audio.transcriptions.get",
+      "call": {
+        "method": "audio.transcriptions.get",
+        "args": {
+          "path": [
+            "id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/audio/transcriptions/id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation audio.transcriptions.delete",
+      "call": {
+        "method": "audio.transcriptions.delete",
+        "args": {
+          "path": [
+            "id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "DELETE",
+            "path": "/v1/audio/transcriptions/id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "null": true
+        }
+      }
+    },
+    {
+      "name": "operation coding.catalogue",
+      "call": {
+        "method": "coding.catalogue",
+        "args": {
+          "path": []
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/coding/catalogue",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation coding.codes.get",
+      "call": {
+        "method": "coding.codes.get",
+        "args": {
+          "path": [
+            "code_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/coding/codes/code_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation coding.codes.refine",
+      "call": {
+        "method": "coding.codes.refine",
+        "args": {
+          "path": [
+            "code_1"
+          ],
+          "query": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/coding/codes/code_1/refine",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation coding.icd10gm",
+      "call": {
+        "method": "coding.icd10gm",
+        "args": {
+          "path": [],
+          "body": {
+            "mentions": [
+              {
+                "id": "m1",
+                "text": "art. Hypertonie"
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/coding/icd10gm",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation coding.search",
+      "call": {
+        "method": "coding.search",
+        "args": {
+          "path": [],
+          "query": {
+            "q": "q_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/coding/search",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation costs.get",
+      "call": {
+        "method": "costs.get",
+        "args": {
+          "path": [],
+          "query": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/costs",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation decisions.create",
+      "call": {
+        "method": "decisions.create",
+        "args": {
+          "path": [],
+          "body": {
+            "model": "ms-decide-mini",
+            "state": {
+              "anlass": "Thoraxschmerz seit 2 Stunden",
+              "alter": 67,
+              "vitalwerte": {
+                "rr": "160/95",
+                "puls": 104
+              }
+            },
+            "questions": {}
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/decisions",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation decisions.createBatch",
+      "call": {
+        "method": "decisions.createBatch",
+        "args": {
+          "path": [],
+          "body": {
+            "requests": [
+              {
+                "model": "ms-decide-mini",
+                "state": {
+                  "anlass": "Thoraxschmerz seit 2 Stunden",
+                  "alter": 67,
+                  "vitalwerte": {
+                    "rr": "160/95",
+                    "puls": 104
+                  }
+                },
+                "questions": {}
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/decisions/batch",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation letters.create",
+      "call": {
+        "method": "letters.create",
+        "args": {
+          "path": [],
+          "body": {
+            "notes": "67 J., w. Hypertonie seit 2019. RR 145/90. Ramipril 5 mg 1-0-0.",
+            "custom_template": {
+              "name": "Arztbrief Hausarzt",
+              "sections": [
+                {
+                  "name": "Diagnosen",
+                  "description": "Alle Diagnosen mit ICD-10-GM-Code"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/letters",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation models.list",
+      "call": {
+        "method": "models.list",
+        "args": {
+          "path": []
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/models",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation notes.create",
+      "call": {
+        "method": "notes.create",
+        "args": {
+          "path": [],
+          "body": {
+            "transcript": "transcript_sample",
+            "form": {
+              "sections": [
+                {
+                  "id": "anamnese",
+                  "fields": [
+                    {
+                      "id": "blutdruck_sys"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/notes",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation specs.openapi",
+      "call": {
+        "method": "specs.openapi",
+        "args": {
+          "path": []
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/openapi.json",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation usage.get",
+      "call": {
+        "method": "usage.get",
+        "args": {
+          "path": [],
+          "query": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/usage",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.systems.list",
+      "call": {
+        "method": "connect.systems.list",
+        "args": {
+          "path": [],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/systems",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.systems.get",
+      "call": {
+        "method": "connect.systems.get",
+        "args": {
+          "path": [
+            "system_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/systems/system_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.templates.listForSystem",
+      "call": {
+        "method": "connect.templates.listForSystem",
+        "args": {
+          "path": [
+            "system_id_1"
+          ],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/systems/system_id_1/templates",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.sites.list",
+      "call": {
+        "method": "connect.sites.list",
+        "args": {
+          "path": [],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/sites",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.sites.create",
+      "call": {
+        "method": "connect.sites.create",
+        "args": {
+          "path": [],
+          "body": {
+            "name": "name_sample",
+            "kind": "practice"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/sites",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.sites.get",
+      "call": {
+        "method": "connect.sites.get",
+        "args": {
+          "path": [
+            "site_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/sites/site_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.sites.update",
+      "call": {
+        "method": "connect.sites.update",
+        "args": {
+          "path": [
+            "site_id_1"
+          ],
+          "body": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "PATCH",
+            "path": "/v1/connect/sites/site_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.members.list",
+      "call": {
+        "method": "connect.members.list",
+        "args": {
+          "path": [
+            "site_id_1"
+          ],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/sites/site_id_1/members",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.members.create",
+      "call": {
+        "method": "connect.members.create",
+        "args": {
+          "path": [
+            "site_id_1"
+          ],
+          "body": {
+            "display_name": "display_name_sample",
+            "role": "doctor"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/sites/site_id_1/members",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.members.update",
+      "call": {
+        "method": "connect.members.update",
+        "args": {
+          "path": [
+            "site_id_1",
+            "member_id_1"
+          ],
+          "body": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "PATCH",
+            "path": "/v1/connect/sites/site_id_1/members/member_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.members.setPractitionerLink",
+      "call": {
+        "method": "connect.members.setPractitionerLink",
+        "args": {
+          "path": [
+            "site_id_1",
+            "member_id_1"
+          ],
+          "body": {
+            "practitioner_link": "practitioner_link_sample",
+            "set_by": "set_by_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "PUT",
+            "path": "/v1/connect/sites/site_id_1/members/member_id_1/practitioner-link",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.agents.list",
+      "call": {
+        "method": "connect.agents.list",
+        "args": {
+          "path": [
+            "site_id_1"
+          ],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/sites/site_id_1/agents",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.agents.revoke",
+      "call": {
+        "method": "connect.agents.revoke",
+        "args": {
+          "path": [
+            "agent_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "DELETE",
+            "path": "/v1/connect/agents/agent_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "null": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.pairings.create",
+      "call": {
+        "method": "connect.pairings.create",
+        "args": {
+          "path": [
+            "site_id_1"
+          ],
+          "body": {
+            "kind": "hub",
+            "requested_by": "requested_by_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/sites/site_id_1/pairings",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.pairings.get",
+      "call": {
+        "method": "connect.pairings.get",
+        "args": {
+          "path": [
+            "pairing_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/pairings/pairing_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.pairings.approve",
+      "call": {
+        "method": "connect.pairings.approve",
+        "args": {
+          "path": [
+            "pairing_id_1"
+          ],
+          "body": {
+            "approved_by": "approved_by_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/pairings/pairing_id_1/approve",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.connections.list",
+      "call": {
+        "method": "connect.connections.list",
+        "args": {
+          "path": [],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.connections.create",
+      "call": {
+        "method": "connect.connections.create",
+        "args": {
+          "path": [],
+          "body": {
+            "site_id": "site_id_sample",
+            "system_id": "system_id_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/connections",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.connections.get",
+      "call": {
+        "method": "connect.connections.get",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.connections.update",
+      "call": {
+        "method": "connect.connections.update",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "PATCH",
+            "path": "/v1/connect/connections/connection_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.connections.delete",
+      "call": {
+        "method": "connect.connections.delete",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "DELETE",
+            "path": "/v1/connect/connections/connection_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "null": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.connections.test",
+      "call": {
+        "method": "connect.connections.test",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/connections/connection_id_1/test",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.connections.getHealth",
+      "call": {
+        "method": "connect.connections.getHealth",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/health",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.capabilities.get",
+      "call": {
+        "method": "connect.capabilities.get",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/capabilities",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.grants.list",
+      "call": {
+        "method": "connect.grants.list",
+        "args": {
+          "path": [
+            "site_id_1"
+          ],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/sites/site_id_1/grants",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.grants.create",
+      "call": {
+        "method": "connect.grants.create",
+        "args": {
+          "path": [
+            "site_id_1"
+          ],
+          "body": {
+            "verbs": [
+              {
+                "verb": "patient.context",
+                "roles": [
+                  "doctor"
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/sites/site_id_1/grants",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.grants.delete",
+      "call": {
+        "method": "connect.grants.delete",
+        "args": {
+          "path": [
+            "site_id_1",
+            "grant_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "DELETE",
+            "path": "/v1/connect/sites/site_id_1/grants/grant_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "null": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.apps.list",
+      "call": {
+        "method": "connect.apps.list",
+        "args": {
+          "path": [],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/apps",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.apps.get",
+      "call": {
+        "method": "connect.apps.get",
+        "args": {
+          "path": [
+            "app_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/apps/app_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.apps.update",
+      "call": {
+        "method": "connect.apps.update",
+        "args": {
+          "path": [
+            "app_id_1"
+          ],
+          "body": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "PATCH",
+            "path": "/v1/connect/apps/app_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.apps.addKey",
+      "call": {
+        "method": "connect.apps.addKey",
+        "args": {
+          "path": [
+            "app_id_1"
+          ],
+          "body": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/apps/app_id_1/keys",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.apps.deleteKey",
+      "call": {
+        "method": "connect.apps.deleteKey",
+        "args": {
+          "path": [
+            "app_id_1",
+            "kid_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "DELETE",
+            "path": "/v1/connect/apps/app_id_1/keys/kid_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "null": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.installations.list",
+      "call": {
+        "method": "connect.installations.list",
+        "args": {
+          "path": [],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/installations",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.installations.get",
+      "call": {
+        "method": "connect.installations.get",
+        "args": {
+          "path": [
+            "installation_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/installations/installation_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.installations.delete",
+      "call": {
+        "method": "connect.installations.delete",
+        "args": {
+          "path": [
+            "installation_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "DELETE",
+            "path": "/v1/connect/installations/installation_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "null": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.installations.requestDetails",
+      "call": {
+        "method": "connect.installations.requestDetails",
+        "args": {
+          "path": [
+            "installation_id_1"
+          ],
+          "body": {
+            "verbs": [
+              {
+                "verb": "patient.context",
+                "roles": [
+                  "doctor"
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/installations/installation_id_1/authorization-requests",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.installations.revoke",
+      "call": {
+        "method": "connect.installations.revoke",
+        "args": {
+          "path": [
+            "site_id_1",
+            "installation_id_1"
+          ],
+          "body": {
+            "revoked_by": "revoked_by_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/sites/site_id_1/installations/installation_id_1/revoke",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.appLinks.create",
+      "call": {
+        "method": "connect.appLinks.create",
+        "args": {
+          "path": []
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/app-links",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.appLinks.get",
+      "call": {
+        "method": "connect.appLinks.get",
+        "args": {
+          "path": [
+            "link_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/app-links/link_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.appLinks.approve",
+      "call": {
+        "method": "connect.appLinks.approve",
+        "args": {
+          "path": [
+            "link_id_1"
+          ],
+          "body": {
+            "device_proof": {
+              "agent_id": "agent_id_sample",
+              "ts": "ts_sample",
+              "nonce": "nonce_sample",
+              "sig": "sig_sample"
+            }
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/app-links/link_id_1/approve",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.templates.list",
+      "call": {
+        "method": "connect.templates.list",
+        "args": {
+          "path": [],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/templates",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.templates.create",
+      "call": {
+        "method": "connect.templates.create",
+        "args": {
+          "path": [],
+          "body": {
+            "name": "name_sample",
+            "sections": [
+              {
+                "id": "id_sample",
+                "title": "title_sample"
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/templates",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.templates.get",
+      "call": {
+        "method": "connect.templates.get",
+        "args": {
+          "path": [
+            "template_id_1"
+          ],
+          "query": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/templates/template_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.templates.update",
+      "call": {
+        "method": "connect.templates.update",
+        "args": {
+          "path": [
+            "template_id_1"
+          ],
+          "body": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "PATCH",
+            "path": "/v1/connect/templates/template_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.templates.suggest",
+      "call": {
+        "method": "connect.templates.suggest",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "query": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/template-suggestions",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.mappings.list",
+      "call": {
+        "method": "connect.mappings.list",
+        "args": {
+          "path": [],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/mappings",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.mappings.create",
+      "call": {
+        "method": "connect.mappings.create",
+        "args": {
+          "path": [],
+          "body": {
+            "connection_id": "connection_id_sample",
+            "rules": [
+              {
+                "section_id": "section_id_sample",
+                "slot_id": "slot_id_sample"
+              }
+            ],
+            "fallback_slot": "fallback_slot_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/mappings",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.mappings.get",
+      "call": {
+        "method": "connect.mappings.get",
+        "args": {
+          "path": [
+            "mapping_id_1"
+          ],
+          "query": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/mappings/mapping_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.mappings.propose",
+      "call": {
+        "method": "connect.mappings.propose",
+        "args": {
+          "path": [],
+          "body": {
+            "connection_id": "connection_id_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/mappings/propose",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.uploads.create",
+      "call": {
+        "method": "connect.uploads.create",
+        "args": {
+          "path": [],
+          "body": {
+            "file": {
+              "$file": {
+                "filename": "sample.bin",
+                "bytes": 64
+              }
+            },
+            "purpose": "document_attach"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/uploads",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.transfers.list",
+      "call": {
+        "method": "connect.transfers.list",
+        "args": {
+          "path": [],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/transfers",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.transfers.create",
+      "call": {
+        "method": "connect.transfers.create",
+        "args": {
+          "path": [],
+          "body": {
+            "plan_id": "plan_id_sample",
+            "release": {
+              "released_by": {
+                "member_id": "member_id_sample"
+              },
+              "role": "doctor",
+              "patient_confirmed": {
+                "id": "id_sample"
+              },
+              "document_hash": "document_hash_sample",
+              "released_at": "2026-11-16T09:00:00Z"
+            }
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/transfers",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.transfers.get",
+      "call": {
+        "method": "connect.transfers.get",
+        "args": {
+          "path": [
+            "transfer_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/transfers/transfer_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.transfers.resolve",
+      "call": {
+        "method": "connect.transfers.resolve",
+        "args": {
+          "path": [
+            "transfer_id_1"
+          ],
+          "body": {
+            "action": "mark_done",
+            "resolved_by": {
+              "member_id": "member_id_sample"
+            }
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/transfers/transfer_id_1/resolve",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.events.list",
+      "call": {
+        "method": "connect.events.list",
+        "args": {
+          "path": [],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/events",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.setupSessions.create",
+      "call": {
+        "method": "connect.setupSessions.create",
+        "args": {
+          "path": [
+            "site_id_1"
+          ],
+          "body": {
+            "requested_by": "requested_by_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/sites/site_id_1/setup-sessions",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.setupSessions.get",
+      "call": {
+        "method": "connect.setupSessions.get",
+        "args": {
+          "path": [
+            "site_id_1",
+            "setup_session_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/sites/site_id_1/setup-sessions/setup_session_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.runtime.get",
+      "call": {
+        "method": "connect.runtime.get",
+        "args": {
+          "path": [
+            "beta"
+          ],
+          "query": {
+            "platform": "windows-x86_64"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/runtime/beta",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.licences.list",
+      "call": {
+        "method": "connect.licences.list",
+        "args": {
+          "path": [],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/licences",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.licences.get",
+      "call": {
+        "method": "connect.licences.get",
+        "args": {
+          "path": [
+            "licence_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/licences/licence_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.licences.getUsage",
+      "call": {
+        "method": "connect.licences.getUsage",
+        "args": {
+          "path": [
+            "licence_id_1"
+          ],
+          "query": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/licences/licence_id_1/usage",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.context.getPatient",
+      "call": {
+        "method": "connect.context.getPatient",
+        "args": {
+          "path": [
+            "site_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/sites/site_id_1/context",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.context.listEvents",
+      "call": {
+        "method": "connect.context.listEvents",
+        "args": {
+          "path": [
+            "site_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/sites/site_id_1/context/events",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.appointments.listSite",
+      "call": {
+        "method": "connect.appointments.listSite",
+        "args": {
+          "path": [
+            "site_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample",
+            "from": "2026-11-16",
+            "to": "2026-11-16"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/sites/site_id_1/appointments",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.context.createLaunch",
+      "call": {
+        "method": "connect.context.createLaunch",
+        "args": {
+          "path": [
+            "site_id_1"
+          ],
+          "body": {
+            "connection_id": "connection_id_sample",
+            "member_id": "member_id_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/sites/site_id_1/launches",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.patients.search",
+      "call": {
+        "method": "connect.patients.search",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/patients",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.patients.get",
+      "call": {
+        "method": "connect.patients.get",
+        "args": {
+          "path": [
+            "connection_id_1",
+            "patient_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/patients/patient_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.patients.getCoverage",
+      "call": {
+        "method": "connect.patients.getCoverage",
+        "args": {
+          "path": [
+            "connection_id_1",
+            "patient_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/patients/patient_id_1/coverage",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.practitioners.list",
+      "call": {
+        "method": "connect.practitioners.list",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/practitioners",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.records.listSlots",
+      "call": {
+        "method": "connect.records.listSlots",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/slots",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.records.list",
+      "call": {
+        "method": "connect.records.list",
+        "args": {
+          "path": [
+            "connection_id_1",
+            "patient_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/patients/patient_id_1/entries",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.records.history",
+      "call": {
+        "method": "connect.records.history",
+        "args": {
+          "path": [
+            "connection_id_1",
+            "patient_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/patients/patient_id_1/history",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.records.planWrite",
+      "call": {
+        "method": "connect.records.planWrite",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {
+            "document": {
+              "kind": "note",
+              "patient": {
+                "id": "id_sample"
+              },
+              "sections": [
+                {
+                  "id": "id_sample",
+                  "title": "title_sample",
+                  "text": "text_sample"
+                }
+              ],
+              "source": {
+                "app": "app_sample"
+              }
+            }
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/connections/connection_id_1/plans/record-write",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.records.planWriteBatch",
+      "call": {
+        "method": "connect.records.planWriteBatch",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {
+            "documents": [
+              {
+                "kind": "note",
+                "patient": {
+                  "id": "id_sample"
+                },
+                "sections": [
+                  {
+                    "id": "id_sample",
+                    "title": "title_sample",
+                    "text": "text_sample"
+                  }
+                ],
+                "source": {
+                  "app": "app_sample"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/connections/connection_id_1/plans/record-write-batch",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.diagnoses.list",
+      "call": {
+        "method": "connect.diagnoses.list",
+        "args": {
+          "path": [
+            "connection_id_1",
+            "patient_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/patients/patient_id_1/diagnoses",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.diagnoses.planWrite",
+      "call": {
+        "method": "connect.diagnoses.planWrite",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {
+            "patient": {
+              "id": "id_sample"
+            },
+            "diagnoses": [
+              {
+                "system": "icd-10-gm",
+                "code": "code_sample",
+                "reviewed": true
+              }
+            ],
+            "source": {
+              "app": "app_sample"
+            }
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/connections/connection_id_1/plans/diagnosis-write",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.diagnoses.planWriteText",
+      "call": {
+        "method": "connect.diagnoses.planWriteText",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {
+            "patient": {
+              "id": "id_sample"
+            },
+            "diagnoses": [
+              {
+                "text": "text_sample"
+              }
+            ],
+            "source": {
+              "app": "app_sample"
+            }
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/connections/connection_id_1/plans/diagnosis-write-text",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.medications.list",
+      "call": {
+        "method": "connect.medications.list",
+        "args": {
+          "path": [
+            "connection_id_1",
+            "patient_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/patients/patient_id_1/medications",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.medications.planOrder",
+      "call": {
+        "method": "connect.medications.planOrder",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {
+            "patient": {
+              "id": "id_sample"
+            },
+            "items": [
+              {
+                "name": "name_sample"
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/connections/connection_id_1/plans/medication-order",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.medications.getOrder",
+      "call": {
+        "method": "connect.medications.getOrder",
+        "args": {
+          "path": [
+            "connection_id_1",
+            "order_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/medication-orders/order_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.observations.list",
+      "call": {
+        "method": "connect.observations.list",
+        "args": {
+          "path": [
+            "connection_id_1",
+            "patient_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/patients/patient_id_1/observations",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.documents.list",
+      "call": {
+        "method": "connect.documents.list",
+        "args": {
+          "path": [
+            "connection_id_1",
+            "patient_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/patients/patient_id_1/documents",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.documents.getContent",
+      "call": {
+        "method": "connect.documents.getContent",
+        "args": {
+          "path": [
+            "connection_id_1",
+            "document_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/documents/document_id_1/content",
+            "problems": []
+          }
+        ],
+        "result": {
+          "bytes": 8
+        }
+      }
+    },
+    {
+      "name": "operation connect.documents.planAttach",
+      "call": {
+        "method": "connect.documents.planAttach",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {
+            "patient": {
+              "id": "id_sample"
+            },
+            "title": "title_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/connections/connection_id_1/plans/document-attach",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.appointments.listSlots",
+      "call": {
+        "method": "connect.appointments.listSlots",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/appointment-slots",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.appointments.list",
+      "call": {
+        "method": "connect.appointments.list",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/appointments",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.appointments.planBook",
+      "call": {
+        "method": "connect.appointments.planBook",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {
+            "patient": {
+              "id": "id_sample"
+            },
+            "slot_id": "slot_id_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/connections/connection_id_1/plans/appointment-book",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.appointments.planCancel",
+      "call": {
+        "method": "connect.appointments.planCancel",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {
+            "patient": {
+              "id": "id_sample"
+            },
+            "appointment_id": "appointment_id_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/connections/connection_id_1/plans/appointment-cancel",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.referrals.planOrder",
+      "call": {
+        "method": "connect.referrals.planOrder",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {
+            "patient": {
+              "id": "id_sample"
+            },
+            "target": "target_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/connections/connection_id_1/plans/referral-order",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.referrals.get",
+      "call": {
+        "method": "connect.referrals.get",
+        "args": {
+          "path": [
+            "connection_id_1",
+            "referral_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/referrals/referral_id_1",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.billing.listCases",
+      "call": {
+        "method": "connect.billing.listCases",
+        "args": {
+          "path": [
+            "connection_id_1",
+            "patient_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/patients/patient_id_1/billing-cases",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.billing.listItems",
+      "call": {
+        "method": "connect.billing.listItems",
+        "args": {
+          "path": [
+            "connection_id_1",
+            "case_id_1"
+          ],
+          "query": {
+            "member_id": "member_id_sample"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/billing-cases/case_id_1/items",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.billing.planPropose",
+      "call": {
+        "method": "connect.billing.planPropose",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {
+            "patient": {
+              "id": "id_sample"
+            },
+            "case_id": "case_id_sample",
+            "items": [
+              {
+                "code": {
+                  "system": "icd-10-gm",
+                  "code": "code_sample",
+                  "reviewed": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/connections/connection_id_1/plans/billing-propose",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.billing.listExports",
+      "call": {
+        "method": "connect.billing.listExports",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "query": {}
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/billing-exports",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    }
+  ]
+}

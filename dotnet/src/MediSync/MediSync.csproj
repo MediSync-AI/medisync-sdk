@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
+    <LangVersion>12</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>MediSync</RootNamespace>
+    <AssemblyName>MediSync</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <PackageId>MediSync</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>MediSync GmbH</Authors>
+    <Company>MediSync GmbH</Company>
+    <Product>MediSync .NET SDK</Product>
+    <Description>The .NET SDK for the MediSync API: speech to text, clinical notes and letters, ICD-10-GM coding, decisions and MediSync Connect.</Description>
+    <Copyright>MediSync GmbH</Copyright>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/MediSync-AI/medisync-sdk</PackageProjectUrl>
+    <PackageTags>medisync;speech-to-text;transcription;clinical-documentation;icd-10-gm;pvs;kis</PackageTags>
+    <RepositoryUrl>https://github.com/MediSync-AI/medisync-sdk</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+
+    <!-- Reproducible package: SourceLink (part of the .NET 8 SDK), deterministic build, symbols package. -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true' Or '$(Configuration)' == 'Release'">true</ContinuousIntegrationBuild>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Text.Json" Version="8.0.6" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <InternalsVisibleTo Include="MediSync.Tests" />
+  </ItemGroup>
+
+</Project>

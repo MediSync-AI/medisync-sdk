@@ -1,0 +1,935 @@
+{
+  "version": "2026-11-01",
+  "operations": [
+    {
+      "api": "platform",
+      "operationId": "getAsyncApi",
+      "typescript": "specs.asyncapi",
+      "python": "specs.asyncapi",
+      "java": "specs.asyncapi",
+      "dotnet": "Specs.AsyncapiAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "createStreamToken",
+      "typescript": "audio.stream.tokens.create",
+      "python": "audio.stream.tokens.create",
+      "java": "audio.stream.tokens.create",
+      "dotnet": "Audio.Stream.Tokens.CreateAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "createTranscription",
+      "typescript": "audio.transcriptions.create",
+      "python": "audio.transcriptions.create",
+      "java": "audio.transcriptions.create",
+      "dotnet": "Audio.Transcriptions.CreateAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "getTranscription",
+      "typescript": "audio.transcriptions.get",
+      "python": "audio.transcriptions.get",
+      "java": "audio.transcriptions.get",
+      "dotnet": "Audio.Transcriptions.GetAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "deleteTranscription",
+      "typescript": "audio.transcriptions.delete",
+      "python": "audio.transcriptions.delete",
+      "java": "audio.transcriptions.delete",
+      "dotnet": "Audio.Transcriptions.DeleteAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "getCatalogue",
+      "typescript": "coding.catalogue",
+      "python": "coding.catalogue",
+      "java": "coding.catalogue",
+      "dotnet": "Coding.CatalogueAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "getCode",
+      "typescript": "coding.codes.get",
+      "python": "coding.codes.get",
+      "java": "coding.codes.get",
+      "dotnet": "Coding.Codes.GetAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "refineCode",
+      "typescript": "coding.codes.refine",
+      "python": "coding.codes.refine",
+      "java": "coding.codes.refine",
+      "dotnet": "Coding.Codes.RefineAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "codeIcd10gm",
+      "typescript": "coding.icd10gm",
+      "python": "coding.icd10gm",
+      "java": "coding.icd10gm",
+      "dotnet": "Coding.Icd10gmAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "searchCodes",
+      "typescript": "coding.search",
+      "python": "coding.search",
+      "java": "coding.search",
+      "dotnet": "Coding.SearchAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "getCosts",
+      "typescript": "costs.get",
+      "python": "costs.get",
+      "java": "costs.get",
+      "dotnet": "Costs.GetAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "createDecision",
+      "typescript": "decisions.create",
+      "python": "decisions.create",
+      "java": "decisions.create",
+      "dotnet": "Decisions.CreateAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "createDecisionBatch",
+      "typescript": "decisions.createBatch",
+      "python": "decisions.create_batch",
+      "java": "decisions.createBatch",
+      "dotnet": "Decisions.CreateBatchAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "createLetter",
+      "typescript": "letters.create",
+      "python": "letters.create",
+      "java": "letters.create",
+      "dotnet": "Letters.CreateAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "listModels",
+      "typescript": "models.list",
+      "python": "models.list",
+      "java": "models.list",
+      "dotnet": "Models.ListAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "createNote",
+      "typescript": "notes.create",
+      "python": "notes.create",
+      "java": "notes.create",
+      "dotnet": "Notes.CreateAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "getOpenApi",
+      "typescript": "specs.openapi",
+      "python": "specs.openapi",
+      "java": "specs.openapi",
+      "dotnet": "Specs.OpenapiAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "getUsage",
+      "typescript": "usage.get",
+      "python": "usage.get",
+      "java": "usage.get",
+      "dotnet": "Usage.GetAsync"
+    },
+    {
+      "api": "platform",
+      "operationId": "openStream",
+      "typescript": "audio.stream.open",
+      "python": "audio.stream.open",
+      "java": "audio.stream.open",
+      "dotnet": "Audio.Stream.OpenAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "systems.list",
+      "typescript": "connect.systems.list",
+      "python": "connect.systems.list",
+      "java": "connect.systems.list",
+      "dotnet": "Connect.Systems.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "systems.get",
+      "typescript": "connect.systems.get",
+      "python": "connect.systems.get",
+      "java": "connect.systems.get",
+      "dotnet": "Connect.Systems.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "templates.listForSystem",
+      "typescript": "connect.templates.listForSystem",
+      "python": "connect.templates.list_for_system",
+      "java": "connect.templates.listForSystem",
+      "dotnet": "Connect.Templates.ListForSystemAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "sites.list",
+      "typescript": "connect.sites.list",
+      "python": "connect.sites.list",
+      "java": "connect.sites.list",
+      "dotnet": "Connect.Sites.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "sites.create",
+      "typescript": "connect.sites.create",
+      "python": "connect.sites.create",
+      "java": "connect.sites.create",
+      "dotnet": "Connect.Sites.CreateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "sites.get",
+      "typescript": "connect.sites.get",
+      "python": "connect.sites.get",
+      "java": "connect.sites.get",
+      "dotnet": "Connect.Sites.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "sites.update",
+      "typescript": "connect.sites.update",
+      "python": "connect.sites.update",
+      "java": "connect.sites.update",
+      "dotnet": "Connect.Sites.UpdateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "members.list",
+      "typescript": "connect.members.list",
+      "python": "connect.members.list",
+      "java": "connect.members.list",
+      "dotnet": "Connect.Members.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "members.create",
+      "typescript": "connect.members.create",
+      "python": "connect.members.create",
+      "java": "connect.members.create",
+      "dotnet": "Connect.Members.CreateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "members.update",
+      "typescript": "connect.members.update",
+      "python": "connect.members.update",
+      "java": "connect.members.update",
+      "dotnet": "Connect.Members.UpdateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "members.setPractitionerLink",
+      "typescript": "connect.members.setPractitionerLink",
+      "python": "connect.members.set_practitioner_link",
+      "java": "connect.members.setPractitionerLink",
+      "dotnet": "Connect.Members.SetPractitionerLinkAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "agents.list",
+      "typescript": "connect.agents.list",
+      "python": "connect.agents.list",
+      "java": "connect.agents.list",
+      "dotnet": "Connect.Agents.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "agents.revoke",
+      "typescript": "connect.agents.revoke",
+      "python": "connect.agents.revoke",
+      "java": "connect.agents.revoke",
+      "dotnet": "Connect.Agents.RevokeAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "pairings.create",
+      "typescript": "connect.pairings.create",
+      "python": "connect.pairings.create",
+      "java": "connect.pairings.create",
+      "dotnet": "Connect.Pairings.CreateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "pairings.get",
+      "typescript": "connect.pairings.get",
+      "python": "connect.pairings.get",
+      "java": "connect.pairings.get",
+      "dotnet": "Connect.Pairings.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "pairings.approve",
+      "typescript": "connect.pairings.approve",
+      "python": "connect.pairings.approve",
+      "java": "connect.pairings.approve",
+      "dotnet": "Connect.Pairings.ApproveAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "connections.list",
+      "typescript": "connect.connections.list",
+      "python": "connect.connections.list",
+      "java": "connect.connections.list",
+      "dotnet": "Connect.Connections.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "connections.create",
+      "typescript": "connect.connections.create",
+      "python": "connect.connections.create",
+      "java": "connect.connections.create",
+      "dotnet": "Connect.Connections.CreateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "connections.get",
+      "typescript": "connect.connections.get",
+      "python": "connect.connections.get",
+      "java": "connect.connections.get",
+      "dotnet": "Connect.Connections.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "connections.update",
+      "typescript": "connect.connections.update",
+      "python": "connect.connections.update",
+      "java": "connect.connections.update",
+      "dotnet": "Connect.Connections.UpdateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "connections.delete",
+      "typescript": "connect.connections.delete",
+      "python": "connect.connections.delete",
+      "java": "connect.connections.delete",
+      "dotnet": "Connect.Connections.DeleteAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "connections.test",
+      "typescript": "connect.connections.test",
+      "python": "connect.connections.test",
+      "java": "connect.connections.test",
+      "dotnet": "Connect.Connections.TestAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "connections.getHealth",
+      "typescript": "connect.connections.getHealth",
+      "python": "connect.connections.get_health",
+      "java": "connect.connections.getHealth",
+      "dotnet": "Connect.Connections.GetHealthAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "capabilities.get",
+      "typescript": "connect.capabilities.get",
+      "python": "connect.capabilities.get",
+      "java": "connect.capabilities.get",
+      "dotnet": "Connect.Capabilities.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "grants.list",
+      "typescript": "connect.grants.list",
+      "python": "connect.grants.list",
+      "java": "connect.grants.list",
+      "dotnet": "Connect.Grants.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "grants.create",
+      "typescript": "connect.grants.create",
+      "python": "connect.grants.create",
+      "java": "connect.grants.create",
+      "dotnet": "Connect.Grants.CreateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "grants.delete",
+      "typescript": "connect.grants.delete",
+      "python": "connect.grants.delete",
+      "java": "connect.grants.delete",
+      "dotnet": "Connect.Grants.DeleteAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "apps.list",
+      "typescript": "connect.apps.list",
+      "python": "connect.apps.list",
+      "java": "connect.apps.list",
+      "dotnet": "Connect.Apps.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "apps.get",
+      "typescript": "connect.apps.get",
+      "python": "connect.apps.get",
+      "java": "connect.apps.get",
+      "dotnet": "Connect.Apps.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "apps.update",
+      "typescript": "connect.apps.update",
+      "python": "connect.apps.update",
+      "java": "connect.apps.update",
+      "dotnet": "Connect.Apps.UpdateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "apps.addKey",
+      "typescript": "connect.apps.addKey",
+      "python": "connect.apps.add_key",
+      "java": "connect.apps.addKey",
+      "dotnet": "Connect.Apps.AddKeyAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "apps.deleteKey",
+      "typescript": "connect.apps.deleteKey",
+      "python": "connect.apps.delete_key",
+      "java": "connect.apps.deleteKey",
+      "dotnet": "Connect.Apps.DeleteKeyAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "installations.list",
+      "typescript": "connect.installations.list",
+      "python": "connect.installations.list",
+      "java": "connect.installations.list",
+      "dotnet": "Connect.Installations.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "installations.get",
+      "typescript": "connect.installations.get",
+      "python": "connect.installations.get",
+      "java": "connect.installations.get",
+      "dotnet": "Connect.Installations.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "installations.delete",
+      "typescript": "connect.installations.delete",
+      "python": "connect.installations.delete",
+      "java": "connect.installations.delete",
+      "dotnet": "Connect.Installations.DeleteAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "installations.requestDetails",
+      "typescript": "connect.installations.requestDetails",
+      "python": "connect.installations.request_details",
+      "java": "connect.installations.requestDetails",
+      "dotnet": "Connect.Installations.RequestDetailsAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "installations.revoke",
+      "typescript": "connect.installations.revoke",
+      "python": "connect.installations.revoke",
+      "java": "connect.installations.revoke",
+      "dotnet": "Connect.Installations.RevokeAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "appLinks.create",
+      "typescript": "connect.appLinks.create",
+      "python": "connect.app_links.create",
+      "java": "connect.appLinks.create",
+      "dotnet": "Connect.AppLinks.CreateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "appLinks.get",
+      "typescript": "connect.appLinks.get",
+      "python": "connect.app_links.get",
+      "java": "connect.appLinks.get",
+      "dotnet": "Connect.AppLinks.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "appLinks.approve",
+      "typescript": "connect.appLinks.approve",
+      "python": "connect.app_links.approve",
+      "java": "connect.appLinks.approve",
+      "dotnet": "Connect.AppLinks.ApproveAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "templates.list",
+      "typescript": "connect.templates.list",
+      "python": "connect.templates.list",
+      "java": "connect.templates.list",
+      "dotnet": "Connect.Templates.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "templates.create",
+      "typescript": "connect.templates.create",
+      "python": "connect.templates.create",
+      "java": "connect.templates.create",
+      "dotnet": "Connect.Templates.CreateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "templates.get",
+      "typescript": "connect.templates.get",
+      "python": "connect.templates.get",
+      "java": "connect.templates.get",
+      "dotnet": "Connect.Templates.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "templates.update",
+      "typescript": "connect.templates.update",
+      "python": "connect.templates.update",
+      "java": "connect.templates.update",
+      "dotnet": "Connect.Templates.UpdateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "templates.suggest",
+      "typescript": "connect.templates.suggest",
+      "python": "connect.templates.suggest",
+      "java": "connect.templates.suggest",
+      "dotnet": "Connect.Templates.SuggestAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "mappings.list",
+      "typescript": "connect.mappings.list",
+      "python": "connect.mappings.list",
+      "java": "connect.mappings.list",
+      "dotnet": "Connect.Mappings.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "mappings.create",
+      "typescript": "connect.mappings.create",
+      "python": "connect.mappings.create",
+      "java": "connect.mappings.create",
+      "dotnet": "Connect.Mappings.CreateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "mappings.get",
+      "typescript": "connect.mappings.get",
+      "python": "connect.mappings.get",
+      "java": "connect.mappings.get",
+      "dotnet": "Connect.Mappings.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "mappings.propose",
+      "typescript": "connect.mappings.propose",
+      "python": "connect.mappings.propose",
+      "java": "connect.mappings.propose",
+      "dotnet": "Connect.Mappings.ProposeAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "uploads.create",
+      "typescript": "connect.uploads.create",
+      "python": "connect.uploads.create",
+      "java": "connect.uploads.create",
+      "dotnet": "Connect.Uploads.CreateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "transfers.list",
+      "typescript": "connect.transfers.list",
+      "python": "connect.transfers.list",
+      "java": "connect.transfers.list",
+      "dotnet": "Connect.Transfers.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "transfers.create",
+      "typescript": "connect.transfers.create",
+      "python": "connect.transfers.create",
+      "java": "connect.transfers.create",
+      "dotnet": "Connect.Transfers.CreateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "transfers.get",
+      "typescript": "connect.transfers.get",
+      "python": "connect.transfers.get",
+      "java": "connect.transfers.get",
+      "dotnet": "Connect.Transfers.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "transfers.resolve",
+      "typescript": "connect.transfers.resolve",
+      "python": "connect.transfers.resolve",
+      "java": "connect.transfers.resolve",
+      "dotnet": "Connect.Transfers.ResolveAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "events.list",
+      "typescript": "connect.events.list",
+      "python": "connect.events.list",
+      "java": "connect.events.list",
+      "dotnet": "Connect.Events.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "setupSessions.create",
+      "typescript": "connect.setupSessions.create",
+      "python": "connect.setup_sessions.create",
+      "java": "connect.setupSessions.create",
+      "dotnet": "Connect.SetupSessions.CreateAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "setupSessions.get",
+      "typescript": "connect.setupSessions.get",
+      "python": "connect.setup_sessions.get",
+      "java": "connect.setupSessions.get",
+      "dotnet": "Connect.SetupSessions.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "runtime.get",
+      "typescript": "connect.runtime.get",
+      "python": "connect.runtime.get",
+      "java": "connect.runtime.get",
+      "dotnet": "Connect.Runtime.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "licences.list",
+      "typescript": "connect.licences.list",
+      "python": "connect.licences.list",
+      "java": "connect.licences.list",
+      "dotnet": "Connect.Licences.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "licences.get",
+      "typescript": "connect.licences.get",
+      "python": "connect.licences.get",
+      "java": "connect.licences.get",
+      "dotnet": "Connect.Licences.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "licences.getUsage",
+      "typescript": "connect.licences.getUsage",
+      "python": "connect.licences.get_usage",
+      "java": "connect.licences.getUsage",
+      "dotnet": "Connect.Licences.GetUsageAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "context.getPatient",
+      "typescript": "connect.context.getPatient",
+      "python": "connect.context.get_patient",
+      "java": "connect.context.getPatient",
+      "dotnet": "Connect.Context.GetPatientAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "context.listEvents",
+      "typescript": "connect.context.listEvents",
+      "python": "connect.context.list_events",
+      "java": "connect.context.listEvents",
+      "dotnet": "Connect.Context.ListEventsAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "appointments.listSite",
+      "typescript": "connect.appointments.listSite",
+      "python": "connect.appointments.list_site",
+      "java": "connect.appointments.listSite",
+      "dotnet": "Connect.Appointments.ListSiteAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "context.createLaunch",
+      "typescript": "connect.context.createLaunch",
+      "python": "connect.context.create_launch",
+      "java": "connect.context.createLaunch",
+      "dotnet": "Connect.Context.CreateLaunchAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "patients.search",
+      "typescript": "connect.patients.search",
+      "python": "connect.patients.search",
+      "java": "connect.patients.search",
+      "dotnet": "Connect.Patients.SearchAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "patients.get",
+      "typescript": "connect.patients.get",
+      "python": "connect.patients.get",
+      "java": "connect.patients.get",
+      "dotnet": "Connect.Patients.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "patients.getCoverage",
+      "typescript": "connect.patients.getCoverage",
+      "python": "connect.patients.get_coverage",
+      "java": "connect.patients.getCoverage",
+      "dotnet": "Connect.Patients.GetCoverageAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "practitioners.list",
+      "typescript": "connect.practitioners.list",
+      "python": "connect.practitioners.list",
+      "java": "connect.practitioners.list",
+      "dotnet": "Connect.Practitioners.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "records.listSlots",
+      "typescript": "connect.records.listSlots",
+      "python": "connect.records.list_slots",
+      "java": "connect.records.listSlots",
+      "dotnet": "Connect.Records.ListSlotsAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "records.list",
+      "typescript": "connect.records.list",
+      "python": "connect.records.list",
+      "java": "connect.records.list",
+      "dotnet": "Connect.Records.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "records.history",
+      "typescript": "connect.records.history",
+      "python": "connect.records.history",
+      "java": "connect.records.history",
+      "dotnet": "Connect.Records.HistoryAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "records.planWrite",
+      "typescript": "connect.records.planWrite",
+      "python": "connect.records.plan_write",
+      "java": "connect.records.planWrite",
+      "dotnet": "Connect.Records.PlanWriteAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "records.planWriteBatch",
+      "typescript": "connect.records.planWriteBatch",
+      "python": "connect.records.plan_write_batch",
+      "java": "connect.records.planWriteBatch",
+      "dotnet": "Connect.Records.PlanWriteBatchAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "diagnoses.list",
+      "typescript": "connect.diagnoses.list",
+      "python": "connect.diagnoses.list",
+      "java": "connect.diagnoses.list",
+      "dotnet": "Connect.Diagnoses.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "diagnoses.planWrite",
+      "typescript": "connect.diagnoses.planWrite",
+      "python": "connect.diagnoses.plan_write",
+      "java": "connect.diagnoses.planWrite",
+      "dotnet": "Connect.Diagnoses.PlanWriteAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "diagnoses.planWriteText",
+      "typescript": "connect.diagnoses.planWriteText",
+      "python": "connect.diagnoses.plan_write_text",
+      "java": "connect.diagnoses.planWriteText",
+      "dotnet": "Connect.Diagnoses.PlanWriteTextAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "medications.list",
+      "typescript": "connect.medications.list",
+      "python": "connect.medications.list",
+      "java": "connect.medications.list",
+      "dotnet": "Connect.Medications.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "medications.planOrder",
+      "typescript": "connect.medications.planOrder",
+      "python": "connect.medications.plan_order",
+      "java": "connect.medications.planOrder",
+      "dotnet": "Connect.Medications.PlanOrderAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "medications.getOrder",
+      "typescript": "connect.medications.getOrder",
+      "python": "connect.medications.get_order",
+      "java": "connect.medications.getOrder",
+      "dotnet": "Connect.Medications.GetOrderAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "observations.list",
+      "typescript": "connect.observations.list",
+      "python": "connect.observations.list",
+      "java": "connect.observations.list",
+      "dotnet": "Connect.Observations.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "documents.list",
+      "typescript": "connect.documents.list",
+      "python": "connect.documents.list",
+      "java": "connect.documents.list",
+      "dotnet": "Connect.Documents.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "documents.getContent",
+      "typescript": "connect.documents.getContent",
+      "python": "connect.documents.get_content",
+      "java": "connect.documents.getContent",
+      "dotnet": "Connect.Documents.GetContentAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "documents.planAttach",
+      "typescript": "connect.documents.planAttach",
+      "python": "connect.documents.plan_attach",
+      "java": "connect.documents.planAttach",
+      "dotnet": "Connect.Documents.PlanAttachAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "appointments.listSlots",
+      "typescript": "connect.appointments.listSlots",
+      "python": "connect.appointments.list_slots",
+      "java": "connect.appointments.listSlots",
+      "dotnet": "Connect.Appointments.ListSlotsAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "appointments.list",
+      "typescript": "connect.appointments.list",
+      "python": "connect.appointments.list",
+      "java": "connect.appointments.list",
+      "dotnet": "Connect.Appointments.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "appointments.planBook",
+      "typescript": "connect.appointments.planBook",
+      "python": "connect.appointments.plan_book",
+      "java": "connect.appointments.planBook",
+      "dotnet": "Connect.Appointments.PlanBookAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "appointments.planCancel",
+      "typescript": "connect.appointments.planCancel",
+      "python": "connect.appointments.plan_cancel",
+      "java": "connect.appointments.planCancel",
+      "dotnet": "Connect.Appointments.PlanCancelAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "referrals.planOrder",
+      "typescript": "connect.referrals.planOrder",
+      "python": "connect.referrals.plan_order",
+      "java": "connect.referrals.planOrder",
+      "dotnet": "Connect.Referrals.PlanOrderAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "referrals.get",
+      "typescript": "connect.referrals.get",
+      "python": "connect.referrals.get",
+      "java": "connect.referrals.get",
+      "dotnet": "Connect.Referrals.GetAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "billing.listCases",
+      "typescript": "connect.billing.listCases",
+      "python": "connect.billing.list_cases",
+      "java": "connect.billing.listCases",
+      "dotnet": "Connect.Billing.ListCasesAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "billing.listItems",
+      "typescript": "connect.billing.listItems",
+      "python": "connect.billing.list_items",
+      "java": "connect.billing.listItems",
+      "dotnet": "Connect.Billing.ListItemsAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "billing.planPropose",
+      "typescript": "connect.billing.planPropose",
+      "python": "connect.billing.plan_propose",
+      "java": "connect.billing.planPropose",
+      "dotnet": "Connect.Billing.PlanProposeAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "billing.listExports",
+      "typescript": "connect.billing.listExports",
+      "python": "connect.billing.list_exports",
+      "java": "connect.billing.listExports",
+      "dotnet": "Connect.Billing.ListExportsAsync"
+    }
+  ],
+  "helpers": [
+    {
+      "typescript": "audio.transcriptions.wait",
+      "python": "audio.transcriptions.wait",
+      "java": "audio.transcriptions.wait",
+      "dotnet": "Audio.Transcriptions.WaitAsync"
+    },
+    {
+      "typescript": "connect.transfers.wait",
+      "python": "connect.transfers.wait",
+      "java": "connect.transfers.wait",
+      "dotnet": "Connect.Transfers.WaitAsync"
+    },
+    {
+      "typescript": "connect.events.poll",
+      "python": "connect.events.poll",
+      "java": "connect.events.poll",
+      "dotnet": "Connect.Events.PollAsync"
+    },
+    {
+      "typescript": "connect.capabilities.forConnection",
+      "python": "connect.capabilities.for_connection",
+      "java": "connect.capabilities.forConnection",
+      "dotnet": "Connect.Capabilities.ForConnection"
+    }
+  ]
+}

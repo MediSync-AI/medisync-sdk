@@ -1,0 +1,306 @@
+{
+  "cases": [
+    {
+      "name": "handshake with the API key, config defaults, session_ready first",
+      "steps": [
+        {
+          "open": {
+            "config": {
+              "language": "de"
+            }
+          }
+        },
+        {
+          "close": {}
+        }
+      ],
+      "expect": {
+        "connections": [
+          {
+            "headers": {
+              "authorization": "Bearer msk_test_conformance",
+              "medisync-version": "2026-11-01"
+            },
+            "absentQuery": [
+              "token"
+            ],
+            "config": {
+              "type": "config",
+              "language": "de",
+              "audio": {
+                "encoding": "pcm_s16le",
+                "sample_rate": 16000,
+                "channels": 1
+              },
+              "timeline_offset_seconds": 0
+            }
+          }
+        ],
+        "eventTypes": [
+          "session_ready"
+        ]
+      }
+    },
+    {
+      "name": "a stream token goes in the query, not as a header",
+      "steps": [
+        {
+          "open": {
+            "token": "mst_conformance_token"
+          }
+        },
+        {
+          "close": {}
+        }
+      ],
+      "expect": {
+        "connections": [
+          {
+            "query": {
+              "token": "mst_conformance_token"
+            },
+            "absentHeaders": [
+              "authorization"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "audio, terms, end_utterance: transcripts up to the ack, then close",
+      "steps": [
+        {
+          "open": {}
+        },
+        {
+          "setTerms": [
+            "Ramipril",
+            "Bisoprolol"
+          ]
+        },
+        {
+          "sendAudio": {
+            "seconds": 2.5,
+            "frameSeconds": 0.1
+          }
+        },
+        {
+          "finish": {}
+        }
+      ],
+      "expect": {
+        "eventTypes": [
+          "session_ready",
+          "transcript",
+          "transcript",
+          "ack",
+          "transcript"
+        ],
+        "lastSegmentEnd": 2.5,
+        "connections": [
+          {
+            "audioBytes": 80000,
+            "messageTypes": [
+              "config",
+              "terms",
+              "end_utterance",
+              "close"
+            ],
+            "terms": [
+              "Ramipril",
+              "Bisoprolol"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "after a fatal worker_lost the stream continues from the last segment end",
+      "ws": {
+        "fatal": {
+          "connection": 1,
+          "afterSeconds": 1.5,
+          "code": "worker_lost"
+        }
+      },
+      "steps": [
+        {
+          "open": {}
+        },
+        {
+          "sendAudio": {
+            "seconds": 2.5,
+            "frameSeconds": 0.1
+          }
+        },
+        {
+          "finish": {}
+        }
+      ],
+      "expect": {
+        "connectionCount": 2,
+        "eventTypesInclude": [
+          "reconnecting"
+        ],
+        "lastSegmentEnd": 2.5,
+        "connections": [
+          {},
+          {
+            "config": {
+              "timeline_offset_seconds": 1
+            },
+            "firstAudioAt": 1,
+            "audioBytes": 48000
+          }
+        ]
+      }
+    },
+    {
+      "name": "the wordbook is sent again after a reconnect",
+      "ws": {
+        "fatal": {
+          "connection": 1,
+          "afterSeconds": 1.5,
+          "code": "worker_lost"
+        }
+      },
+      "steps": [
+        {
+          "open": {}
+        },
+        {
+          "setTerms": [
+            "Ramipril"
+          ]
+        },
+        {
+          "sendAudio": {
+            "seconds": 2.5,
+            "frameSeconds": 0.1
+          }
+        },
+        {
+          "finish": {}
+        }
+      ],
+      "expect": {
+        "connectionCount": 2,
+        "lastSegmentEnd": 2.5,
+        "connections": [
+          {
+            "terms": [
+              "Ramipril"
+            ]
+          },
+          {
+            "terms": [
+              "Ramipril"
+            ],
+            "config": {
+              "timeline_offset_seconds": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "after a dropped socket the stream continues",
+      "ws": {
+        "drop": {
+          "connection": 1,
+          "afterSeconds": 1.2,
+          "closeCode": 1011
+        }
+      },
+      "steps": [
+        {
+          "open": {}
+        },
+        {
+          "sendAudio": {
+            "seconds": 2.0,
+            "frameSeconds": 0.1
+          }
+        },
+        {
+          "finish": {}
+        }
+      ],
+      "expect": {
+        "connectionCount": 2,
+        "eventTypesInclude": [
+          "reconnecting"
+        ],
+        "lastSegmentEnd": 2.0,
+        "connections": [
+          {},
+          {
+            "config": {
+              "timeline_offset_seconds": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a fatal config error ends the stream with its code",
+      "ws": {
+        "configError": {
+          "code": "config_invalid",
+          "message": "Unknown field chunk_strategy in the config.",
+          "param": "chunk_strategy"
+        }
+      },
+      "steps": [
+        {
+          "open": {
+            "config": {
+              "chunk_strategy": "x"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "error": {
+          "class": "LiveStreamError",
+          "code": "config_invalid"
+        },
+        "connectionCount": 1
+      }
+    },
+    {
+      "name": "a refused handshake raises",
+      "ws": {
+        "reject": {
+          "status": 401,
+          "body": {
+            "type": "error",
+            "error": {
+              "type": "authentication_error",
+              "code": "invalid_api_key",
+              "message": "Mock error.",
+              "request_id": "req_case_1",
+              "param": null
+            },
+            "request_id": "req_case_1"
+          }
+        }
+      },
+      "steps": [
+        {
+          "open": {}
+        }
+      ],
+      "expect": {
+        "error": {
+          "class": "LiveStreamError",
+          "codeOneOf": [
+            "invalid_api_key",
+            "handshake_failed"
+          ]
+        },
+        "connectionCount": 1
+      }
+    }
+  ]
+}
