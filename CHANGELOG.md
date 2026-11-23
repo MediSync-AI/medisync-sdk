@@ -12,6 +12,7 @@ The live stream reads the new `flushed` message of the speech service.
 - `finish()` no longer waits forever when the server sends nothing at all after `end_utterance`.
 - A non-fatal `error` with code `asr_failed` (one segment has no transcript) stays an event; the stream goes on. The speech service now also sends it when a segment fails or takes longer than 120 s.
 - Message types the SDK does not know behave as before: TypeScript passes them through, Java and .NET give an `UnknownStreamEvent`, Python skips them.
+- Apps on 0.1.x keep working after the speech service sends `flushed`: TypeScript passes it on as an event of an unknown type, Java and .NET give an `UnknownStreamEvent`, and Python drops it. `finish()` on 0.1.x still ends by its old rule and does not wait for `flushed`.
 
 ## 0.1.0
 
