@@ -6,7 +6,7 @@ All four packages (npm and JSR `medisync`, PyPI `medisync`, Maven `me.medisync:m
 
 The live stream reads the new `flushed` message of the speech service.
 
-- New event `flushed` with `processed_until`: TypeScript `StreamFlushed`, Python `StreamFlushed`, Java and .NET `StreamFlushed`. The server sends one after each `end_utterance`, once every transcript of the audio it had is out, with the same `processed_until` as the `ack`.
+- New event `flushed` with `processed_until`: TypeScript `StreamFlushed`, Python `StreamFlushed`, Java and .NET `StreamFlushed`. The server sends one after each `end_utterance`, once it has finished its work on the audio it had (audio dropped under load or not transcribed has no transcript), with the same `processed_until` as the `ack`.
 - `finish()` waits for the `flushed` that answers its own `end_utterance`, so the last words of a recording are not cut off when the speech service is slow. With speaker roles on, it then waits up to 3 s for the final `speaker_roles`. A closed socket still ends it at once.
 - Servers before 23.11.2026 send no `flushed`. After a timeout (default 10 s) `finish()` uses the old rule: a transcript reaches the ack's `processed_until`, or 3 s pass without a message. Set the timeout with `finish({ flushTimeoutMs })` (TypeScript), `finish(flush_timeout=...)` (Python), `finish(Duration)` (Java) or `FinishAsync(TimeSpan)` (.NET).
 - `finish()` no longer waits forever when the server sends nothing at all after `end_utterance`.

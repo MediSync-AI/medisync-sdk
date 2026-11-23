@@ -50,11 +50,12 @@ public sealed class StreamReconnecting : IStreamEvent
 }
 
 /// <summary>
-/// The answer to one <c>end_utterance</c>, after every transcript of the audio it flushed. A segment
-/// that failed sent an <c>error</c> with code <c>asr_failed</c> (not fatal) in place of its
-/// transcript. With speaker roles on, a final <c>speaker_roles</c> message can still follow. Several
-/// <c>end_utterance</c> messages get one <c>flushed</c> each, in the same order. Servers before
-/// 23.11.2026 do not send it.
+/// The answer to one <c>end_utterance</c>: the server has finished its work on the audio up to
+/// <c>processed_until</c>. Audio it dropped under load (<c>backpressure</c>) or could not
+/// transcribe (<c>asr_failed</c> or <c>language_unsupported</c>, both not fatal) has no transcript.
+/// With speaker roles on, a final <c>speaker_roles</c> usually follows; under load it can come
+/// earlier, or not at all for a later <c>end_utterance</c>. Several <c>end_utterance</c> messages
+/// get one <c>flushed</c> each, in the same order. Servers before 23.11.2026 do not send it.
 /// </summary>
 public sealed class StreamFlushed : IStreamEvent
 {
