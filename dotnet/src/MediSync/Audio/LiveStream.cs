@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.WebSockets;
@@ -48,6 +49,27 @@ public sealed class StreamReconnecting : IStreamEvent
     public string Reason { get; }
 }
 
+/// <summary>
+/// The answer to one <c>end_utterance</c>, after every transcript of the audio it flushed. A segment
+/// that failed sent an <c>error</c> with code <c>asr_failed</c> (not fatal) in place of its
+/// transcript. With speaker roles on, a final <c>speaker_roles</c> message can still follow. Several
+/// <c>end_utterance</c> messages get one <c>flushed</c> each, in the same order. Servers before
+/// 23.11.2026 do not send it.
+/// </summary>
+public sealed class StreamFlushed : IStreamEvent
+{
+    internal StreamFlushed(double processedUntil)
+    {
+        ProcessedUntil = processedUntil;
+    }
+
+    /// <inheritdoc />
+    public string Type => "flushed";
+
+    /// <summary>The same value as the <c>ack</c> of the same <c>end_utterance</c>: seconds of audio the server had read.</summary>
+    public double ProcessedUntil { get; }
+}
+
 /// <summary>A server message of a type this SDK version does not know.</summary>
 public sealed class UnknownStreamEvent : IStreamEvent
 {
@@ -89,7 +111,7 @@ public sealed class StreamOptions
 /// <summary>
 /// An open live stream (specs/asyncapi.yaml): one WebSocket per conversation. Send audio with
 /// <see cref="SendAsync"/>, read messages with <c>await foreach</c>, and end with
-/// <see cref="FinishAsync"/> to keep the last transcripts, or <see cref="CloseAsync"/> to drop them.
+/// <see cref="FinishAsync(CancellationToken)"/> to keep the last transcripts, or <see cref="CloseAsync"/> to drop them.
 /// After a drop, or a fatal error that a new stream can continue, the stream connects again with
 /// <c>timeline_offset_seconds</c> set to the last <c>segment.end</c> and sends the audio after that
 /// point again; the iteration then gives a <see cref="StreamReconnecting"/> event.
@@ -102,8 +124,19 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
     /// <summary>Close codes after which a new stream can continue: abnormal drop, going away, service failure, restart.</summary>
     private static readonly HashSet<int> ContinueClose = new() { 1001, 1006, 1011, 1012 };
 
-    /// <summary>After end_utterance, the stream ends when nothing has arrived for this long.</summary>
-    private static readonly TimeSpan Silence = TimeSpan.FromSeconds(3);
+    /// <summary>
+    /// How long <see cref="FinishAsync(CancellationToken)"/> waits for <c>flushed</c> before it uses the
+    /// old rule. Servers before 23.11.2026 send no <c>flushed</c>.
+    /// </summary>
+    public static readonly TimeSpan FlushTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>The old rule: without <c>flushed</c>, the stream ends when nothing has arrived for this long.</summary>
+    private const long SilenceMs = 3_000;
+
+    /// <summary>With speaker roles on, how long FinishAsync waits for the final <c>speaker_roles</c> after the tail.</summary>
+    private const long RolesWaitMs = 3_000;
+
+    private static readonly Stopwatch Clock = Stopwatch.StartNew();
 
     private sealed class Frame
     {
@@ -112,10 +145,25 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
         public byte[] Data = Array.Empty<byte>();
     }
 
+    /// <summary>What FinishAsync waits for: Flush for flushed, Fallback for the old rule, Roles for the final roles.</summary>
+    private enum Phase
+    {
+        Flush,
+        Fallback,
+        Roles,
+    }
+
     private sealed class Finishing
     {
         public readonly TaskCompletionSource<bool> Done = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public long FlushTimeoutMs;
+        /// <summary>Which end_utterance of the current socket is the stop: its ack and flushed have the same index.</summary>
+        public int? Target;
         public double? Ack;
+        public Phase Phase;
+        public long Since;
+        public long LastMessageAt;
+        public bool RolesFinal;
         public int Timer;
     }
 
@@ -141,6 +189,12 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
     private LiveStreamException? _failure;
     private bool _closing;
     private Finishing? _finishing;
+    // end_utterance, ack and flushed counted on the current socket, to pair them by order.
+    private int _utterances;
+    private int _acks;
+    private int _flushes;
+    /// <summary>The current session sends speaker roles (<c>effective.speaker_roles</c>).</summary>
+    private bool _roles;
     private int _attempts;
     private string? _continueReason;
     private TaskCompletionSource<bool>? _opened;
@@ -233,13 +287,13 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
         }
     }
 
-    /// <summary>Flushes the audio the server holds. The server answers with <c>ack</c>.</summary>
+    /// <summary>Flushes the audio the server holds. The server answers with <c>ack</c>, then <c>flushed</c> after the last transcript.</summary>
     public async Task EndUtteranceAsync(CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await SendJson(new JsonObject { ["type"] = "end_utterance" }).ConfigureAwait(false);
+            await SendEndUtterance().ConfigureAwait(false);
         }
         finally
         {
@@ -247,11 +301,17 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
         }
     }
 
+    /// <summary><see cref="FinishAsync(TimeSpan, CancellationToken)"/> with <see cref="FlushTimeout"/>.</summary>
+    public Task FinishAsync(CancellationToken cancellationToken = default) => FinishAsync(FlushTimeout, cancellationToken);
+
     /// <summary>
-    /// Ends the stream and keeps its tail: sends <c>end_utterance</c>, waits for the transcripts up to
-    /// the ack's <c>processed_until</c> (or 3 s without a message), then closes.
+    /// Ends the stream and keeps its tail: sends <c>end_utterance</c> and waits for its <c>flushed</c>
+    /// (the last transcripts come before it). With speaker roles on, it then waits up to 3 s for the
+    /// final <c>speaker_roles</c>. Then it closes. A server that sends no <c>flushed</c> within
+    /// <paramref name="flushTimeout"/> (servers before 23.11.2026) gets the old rule: a transcript
+    /// reaches the ack's <c>processed_until</c>, or 3 s pass without a message.
     /// </summary>
-    public async Task FinishAsync(CancellationToken cancellationToken = default)
+    public async Task FinishAsync(TimeSpan flushTimeout, CancellationToken cancellationToken = default)
     {
         Task task;
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -264,8 +324,8 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
             }
             if (_finishing is null)
             {
-                _finishing = new Finishing();
-                if (_live) await SendJson(new JsonObject { ["type"] = "end_utterance" }).ConfigureAwait(false);
+                _finishing = new Finishing { FlushTimeoutMs = (long)flushTimeout.TotalMilliseconds };
+                if (_live) await StopUtterance().ConfigureAwait(false);
             }
             task = _finishing.Done.Task;
         }
@@ -330,6 +390,7 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
     {
         var type = message.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString()! : "";
         var cls = StreamServerMessages.ForType(type);
+        if (type == "flushed") return new StreamFlushed(Num(message, "processed_until"));
         if (cls is null) return new UnknownStreamEvent(type, message.Clone());
         try
         {
@@ -343,9 +404,16 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
 
     private static JsonObject TermsMessage(List<string> terms) => new() { ["type"] = "terms", ["terms"] = new JsonArray(terms.Select(x => (JsonNode)x!).ToArray()) };
 
-    private async Task SendJson(JsonObject message)
+    private async Task<bool> SendJson(JsonObject message)
     {
-        if (_live && _ws is { } ws) await SendText(ws, message.ToJsonString()).ConfigureAwait(false);
+        if (!_live || _ws is not { } ws) return false;
+        await SendText(ws, message.ToJsonString()).ConfigureAwait(false);
+        return true;
+    }
+
+    private async Task SendEndUtterance()
+    {
+        if (await SendJson(new JsonObject { ["type"] = "end_utterance" }).ConfigureAwait(false)) _utterances++;
     }
 
     private static async Task SendText(ClientWebSocket ws, string text)
@@ -448,6 +516,7 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
             if (_done) return;
             gen = ++_generation;
             _live = false;
+            _utterances = _acks = _flushes = 0;
             _continueReason = null;
             _ws = null;
             offset = _lastEnd;
@@ -603,6 +672,7 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
             case "session_ready":
             {
                 SessionId = Str(message, "session_id");
+                _roles = message.TryGetProperty("effective", out var eff) && eff.ValueKind == JsonValueKind.Object && eff.TryGetProperty("speaker_roles", out var sr) && sr.ValueKind == JsonValueKind.True;
                 _attempts = 0;
                 if (_terms is not null) await SendText(ws, TermsMessage(_terms).ToJsonString()).ConfigureAwait(false);
                 // The audio that has no transcript yet, from the offset on, then live audio.
@@ -616,11 +686,7 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
                     }
                 }
                 _live = true;
-                if (_finishing is { } fin)
-                {
-                    fin.Ack = null;
-                    await SendJson(new JsonObject { ["type"] = "end_utterance" }).ConfigureAwait(false);
-                }
+                if (_finishing is not null) await StopUtterance().ConfigureAwait(false);
                 if (_opened is { } o)
                 {
                     _opened = null;
@@ -633,33 +699,10 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
                 var end = message.TryGetProperty("segment", out var seg) && seg.ValueKind == JsonValueKind.Object ? Num(seg, "end") : 0;
                 if (end > _lastEnd) Volatile.Write(ref _lastEnd, end);
                 while (_frames.First is { } first && first.Value.End <= _lastEnd) _frames.RemoveFirst();
-                if (_finishing is { } fin)
-                {
-                    if (fin.Ack is { } ack && end >= ack)
-                    {
-                        Push(Typed(message));
-                        await CompleteFinish().ConfigureAwait(false);
-                        return;
-                    }
-                    ArmSilence();
-                }
                 break;
             }
-            case "ack":
-                if (_finishing is { } finAck)
-                {
-                    var until = Num(message, "processed_until");
-                    finAck.Ack = until;
-                    if (_lastEnd >= until)
-                    {
-                        Push(Typed(message));
-                        await CompleteFinish().ConfigureAwait(false);
-                        return;
-                    }
-                    ArmSilence();
-                }
-                break;
             case "error":
+                // Not fatal (asr_failed: one segment has no transcript): an event, the stream goes on.
                 if (message.TryGetProperty("fatal", out var fatal) && fatal.ValueKind == JsonValueKind.True)
                 {
                     var code = Str(message, "code") ?? "error";
@@ -678,18 +721,40 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
                 break;
         }
         Push(Typed(message));
+        await Track(message).ConfigureAwait(false);
     }
 
-    private void ArmSilence()
+    /// <summary>Sends the end_utterance of FinishAsync and starts waiting for its flushed.</summary>
+    private async Task StopUtterance()
+    {
+        if (_finishing is not { } f) return;
+        await SendEndUtterance().ConfigureAwait(false);
+        var now = Clock.ElapsedMilliseconds;
+        f.Target = _utterances;
+        f.Ack = null;
+        f.Phase = Phase.Flush;
+        f.Since = now;
+        f.LastMessageAt = now;
+        f.RolesFinal = false;
+        Schedule();
+    }
+
+    private void Schedule()
     {
         if (_finishing is not { } f) return;
         var timer = ++f.Timer;
-        _ = Task.Delay(Silence).ContinueWith(async _ =>
+        var at = f.Phase switch
+        {
+            Phase.Flush => f.Since + f.FlushTimeoutMs,
+            Phase.Roles => f.Since + RolesWaitMs,
+            _ => f.LastMessageAt + SilenceMs,
+        };
+        _ = Task.Delay(TimeSpan.FromMilliseconds(Math.Max(0, at - Clock.ElapsedMilliseconds))).ContinueWith(async _ =>
         {
             await _gate.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (_finishing == f && f.Timer == timer) await CompleteFinish().ConfigureAwait(false);
+                if (_finishing == f && f.Timer == timer && !_done) await OnTimer(f).ConfigureAwait(false);
             }
             finally
             {
@@ -698,8 +763,78 @@ public sealed class LiveStream : IAsyncEnumerable<IStreamEvent>, IAsyncDisposabl
         }, TaskScheduler.Default);
     }
 
+    private async Task OnTimer(Finishing f)
+    {
+        if (f.Phase == Phase.Flush)
+        {
+            // No flushed in time: an older server. Use the old rule from here on.
+            f.Phase = Phase.Fallback;
+            if (f.Ack is { } ack && _lastEnd >= ack) await TailDone().ConfigureAwait(false);
+            else Schedule();
+        }
+        else if (f.Phase == Phase.Fallback)
+        {
+            if (Clock.ElapsedMilliseconds - f.LastMessageAt >= SilenceMs) await TailDone().ConfigureAwait(false);
+            else Schedule();
+        }
+        else
+        {
+            await CompleteFinish().ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Every transcript of the stop is in. With speaker roles on, wait a little for the final roles.</summary>
+    private async Task TailDone()
+    {
+        if (_finishing is not { } f) return;
+        if (_roles && !f.RolesFinal)
+        {
+            f.Phase = Phase.Roles;
+            f.Since = Clock.ElapsedMilliseconds;
+            Schedule();
+        }
+        else
+        {
+            await CompleteFinish().ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Counts acks and flushes, and moves FinishAsync on. Runs after the message is queued.</summary>
+    private async Task Track(JsonElement message)
+    {
+        var type = Str(message, "type");
+        if (type == "ack") _acks++;
+        else if (type == "flushed") _flushes++;
+        if (_finishing is not { } f || f.Target is not { } target || _done) return;
+        f.LastMessageAt = Clock.ElapsedMilliseconds;
+        switch (type)
+        {
+            case "ack":
+                if (_acks != target) return;
+                f.Ack = Num(message, "processed_until");
+                if (f.Phase == Phase.Fallback && _lastEnd >= f.Ack) await TailDone().ConfigureAwait(false);
+                return;
+            case "flushed":
+                if (_flushes == target && f.Phase != Phase.Roles) await TailDone().ConfigureAwait(false);
+                return;
+            case "transcript":
+                var end = message.TryGetProperty("segment", out var seg) && seg.ValueKind == JsonValueKind.Object ? Num(seg, "end") : 0;
+                if (f.Phase == Phase.Fallback && f.Ack is { } ack && end >= ack) await TailDone().ConfigureAwait(false);
+                return;
+            case "speaker_roles":
+                if (!(message.TryGetProperty("final", out var fin) && fin.ValueKind == JsonValueKind.True)) return;
+                f.RolesFinal = true;
+                if (f.Phase == Phase.Roles) await CompleteFinish().ConfigureAwait(false);
+                return;
+            default:
+                if (f.Phase == Phase.Fallback) Schedule();
+                return;
+        }
+    }
+
     private async Task CompleteFinish()
     {
+        if (_done) return;
         await SendJson(new JsonObject { ["type"] = "close" }).ConfigureAwait(false);
         _closing = true;
         await CloseSocket().ConfigureAwait(false);
