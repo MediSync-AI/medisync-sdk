@@ -5,7 +5,10 @@
 // that point again, as the "Errors and reconnect" page of the docs describes.
 import type { MediSyncCore } from '../core/client.ts';
 import { MediSyncError } from '../core/errors.ts';
-import type { StreamConfig, StreamServerMessage } from '../generated/types/live.ts';
+import type { StreamConfig, StreamFlushed, StreamServerMessage } from '../generated/types/live.ts';
+
+// The answer to one `end_utterance`; the spec defines it since 23.11.2026 (before, this file did).
+export type { StreamFlushed };
 
 /** Fatal codes after which a new stream can continue the conversation. */
 export const CONTINUE_CODES: ReadonlySet<string> = new Set(['overloaded', 'unavailable', 'service_unavailable', 'worker_lost', 'max_duration_reached', 'session_conflict']);
@@ -47,21 +50,7 @@ export interface StreamReconnecting {
   reason: string;
 }
 
-/**
- * The answer to one `end_utterance`: the server has finished its work on the audio up to
- * `processed_until`. Audio it dropped under load (`backpressure`) or could not transcribe
- * (`asr_failed` or `language_unsupported`, both not fatal) has no transcript. With speaker roles
- * on, a final `speaker_roles` usually follows; under load it can come earlier, or not at all for a
- * later `end_utterance`. Several `end_utterance` messages get one `flushed` each, in the same
- * order. Servers before 23.11.2026 do not send it.
- */
-export interface StreamFlushed {
-  type: 'flushed';
-  /** The same value as the `ack` of the same `end_utterance`: seconds of audio the server had read. */
-  processed_until: number;
-}
-
-export type StreamEvent = StreamServerMessage | StreamFlushed | StreamReconnecting;
+export type StreamEvent = StreamServerMessage | StreamReconnecting;
 
 export interface FinishOptions {
   /**

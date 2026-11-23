@@ -47,6 +47,10 @@ export type OperationName =
   | "connect.connections.update"
   | "connect.connections.delete"
   | "connect.connections.test"
+  | "connect.connections.oauthStart"
+  | "connect.connections.setSecrets"
+  | "connect.connections.deleteSecrets"
+  | "connect.connections.getInbound"
   | "connect.connections.getHealth"
   | "connect.capabilities.get"
   | "connect.grants.list"
@@ -89,6 +93,7 @@ export type OperationName =
   | "connect.context.getPatient"
   | "connect.context.listEvents"
   | "connect.appointments.listSite"
+  | "connect.appointments.busySite"
   | "connect.context.createLaunch"
   | "connect.patients.search"
   | "connect.patients.get"
@@ -111,6 +116,7 @@ export type OperationName =
   | "connect.documents.planAttach"
   | "connect.appointments.listSlots"
   | "connect.appointments.list"
+  | "connect.appointments.busy"
   | "connect.appointments.planBook"
   | "connect.appointments.planCancel"
   | "connect.referrals.planOrder"
@@ -162,6 +168,10 @@ export const OPERATIONS: Readonly<Record<OperationName, OperationMeta>> = {
   "connect.connections.update": {"api":"connect","operationId":"connections.update","method":"PATCH","path":"/v1/connect/connections/{connection_id}","body":"json","query":false,"response":"json","idempotency":"none","paginated":false,"scope":"connect.setup","usage":"setup"},
   "connect.connections.delete": {"api":"connect","operationId":"connections.delete","method":"DELETE","path":"/v1/connect/connections/{connection_id}","body":null,"query":false,"response":"empty","idempotency":"none","paginated":false,"scope":"connect.setup","usage":"setup"},
   "connect.connections.test": {"api":"connect","operationId":"connections.test","method":"POST","path":"/v1/connect/connections/{connection_id}/test","body":null,"query":false,"response":"json","idempotency":"optional","paginated":false,"scope":"connect.setup","metered":"connect.read","usage":"setup"},
+  "connect.connections.oauthStart": {"api":"connect","operationId":"connections.oauthStart","method":"POST","path":"/v1/connect/connections/{connection_id}/oauth/start","body":"json","query":false,"response":"json","idempotency":"optional","paginated":false,"scope":"connect.setup","phi":true,"usage":"setup"},
+  "connect.connections.setSecrets": {"api":"connect","operationId":"connections.setSecrets","method":"PUT","path":"/v1/connect/connections/{connection_id}/secrets","body":"json","query":false,"response":"json","idempotency":"none","paginated":false,"scope":"connect.setup","phi":true,"usage":"setup"},
+  "connect.connections.deleteSecrets": {"api":"connect","operationId":"connections.deleteSecrets","method":"DELETE","path":"/v1/connect/connections/{connection_id}/secrets","body":"json","query":false,"response":"json","idempotency":"none","paginated":false,"scope":"connect.setup","usage":"setup"},
+  "connect.connections.getInbound": {"api":"connect","operationId":"connections.getInbound","method":"GET","path":"/v1/connect/connections/{connection_id}/inbound","body":null,"query":false,"response":"json","idempotency":"none","paginated":false,"scope":"connect.setup","phi":true,"usage":"setup"},
   "connect.connections.getHealth": {"api":"connect","operationId":"connections.getHealth","method":"GET","path":"/v1/connect/connections/{connection_id}/health","body":null,"query":false,"response":"json","idempotency":"none","paginated":false,"scope":"connect.read","usage":"status"},
   "connect.capabilities.get": {"api":"connect","operationId":"capabilities.get","method":"GET","path":"/v1/connect/connections/{connection_id}/capabilities","body":null,"query":false,"response":"json","idempotency":"none","paginated":false,"scope":"connect.read","usage":"status"},
   "connect.grants.list": {"api":"connect","operationId":"grants.list","method":"GET","path":"/v1/connect/sites/{site_id}/grants","body":null,"query":true,"response":"json","idempotency":"none","paginated":true,"scope":"connect.read","usage":"status"},
@@ -204,6 +214,7 @@ export const OPERATIONS: Readonly<Record<OperationName, OperationMeta>> = {
   "connect.context.getPatient": {"api":"connect","operationId":"context.getPatient","method":"GET","path":"/v1/connect/sites/{site_id}/context","body":null,"query":true,"response":"json","idempotency":"none","paginated":false,"scope":"connect.read","verb":"patient.context","phi":true,"metered":"connect.read","usage":"read"},
   "connect.context.listEvents": {"api":"connect","operationId":"context.listEvents","method":"GET","path":"/v1/connect/sites/{site_id}/context/events","body":null,"query":true,"response":"json","idempotency":"none","paginated":true,"scope":"connect.read","verb":"context.events","phi":true,"metered":"connect.read","usage":"read"},
   "connect.appointments.listSite": {"api":"connect","operationId":"appointments.listSite","method":"GET","path":"/v1/connect/sites/{site_id}/appointments","body":null,"query":true,"response":"json","idempotency":"none","paginated":true,"scope":"connect.read","verb":"appointment.list","phi":true,"metered":"connect.read","usage":"read"},
+  "connect.appointments.busySite": {"api":"connect","operationId":"appointments.busySite","method":"GET","path":"/v1/connect/sites/{site_id}/busy","body":null,"query":true,"response":"json","idempotency":"none","paginated":true,"scope":"connect.read","verb":"appointment.busy","phi":false,"metered":"connect.read","usage":"read"},
   "connect.context.createLaunch": {"api":"connect","operationId":"context.createLaunch","method":"POST","path":"/v1/connect/sites/{site_id}/launches","body":"json","query":false,"response":"json","idempotency":"optional","paginated":false,"scope":"connect.read","verb":"context.launch","phi":true,"usage":"read"},
   "connect.patients.search": {"api":"connect","operationId":"patients.search","method":"GET","path":"/v1/connect/connections/{connection_id}/patients","body":null,"query":true,"response":"json","idempotency":"none","paginated":true,"scope":"connect.read","verb":"patient.search","phi":true,"metered":"connect.read","usage":"read"},
   "connect.patients.get": {"api":"connect","operationId":"patients.get","method":"GET","path":"/v1/connect/connections/{connection_id}/patients/{patient_id}","body":null,"query":true,"response":"json","idempotency":"none","paginated":false,"scope":"connect.read","verb":"patient.read","phi":true,"metered":"connect.read","usage":"read"},
@@ -226,6 +237,7 @@ export const OPERATIONS: Readonly<Record<OperationName, OperationMeta>> = {
   "connect.documents.planAttach": {"api":"connect","operationId":"documents.planAttach","method":"POST","path":"/v1/connect/connections/{connection_id}/plans/document-attach","body":"json","query":false,"response":"json","idempotency":"optional","paginated":false,"scope":"connect.transfer","verb":"document.attach","phi":true,"usage":"plan"},
   "connect.appointments.listSlots": {"api":"connect","operationId":"appointments.listSlots","method":"GET","path":"/v1/connect/connections/{connection_id}/appointment-slots","body":null,"query":true,"response":"json","idempotency":"none","paginated":true,"scope":"connect.read","verb":"appointment.slots","metered":"connect.read","usage":"read"},
   "connect.appointments.list": {"api":"connect","operationId":"appointments.list","method":"GET","path":"/v1/connect/connections/{connection_id}/appointments","body":null,"query":true,"response":"json","idempotency":"none","paginated":true,"scope":"connect.read","verb":"appointment.list","phi":true,"metered":"connect.read","usage":"read"},
+  "connect.appointments.busy": {"api":"connect","operationId":"appointments.busy","method":"GET","path":"/v1/connect/connections/{connection_id}/appointment-busy","body":null,"query":true,"response":"json","idempotency":"none","paginated":true,"scope":"connect.read","verb":"appointment.busy","phi":false,"metered":"connect.read","usage":"read"},
   "connect.appointments.planBook": {"api":"connect","operationId":"appointments.planBook","method":"POST","path":"/v1/connect/connections/{connection_id}/plans/appointment-book","body":"json","query":false,"response":"json","idempotency":"optional","paginated":false,"scope":"connect.transfer","verb":"appointment.book","phi":true,"usage":"plan"},
   "connect.appointments.planCancel": {"api":"connect","operationId":"appointments.planCancel","method":"POST","path":"/v1/connect/connections/{connection_id}/plans/appointment-cancel","body":"json","query":false,"response":"json","idempotency":"optional","paginated":false,"scope":"connect.transfer","verb":"appointment.cancel","phi":true,"usage":"plan"},
   "connect.referrals.planOrder": {"api":"connect","operationId":"referrals.planOrder","method":"POST","path":"/v1/connect/connections/{connection_id}/plans/referral-order","body":"json","query":false,"response":"json","idempotency":"optional","paginated":false,"scope":"connect.transfer","verb":"referral.order","phi":true,"usage":"plan"},

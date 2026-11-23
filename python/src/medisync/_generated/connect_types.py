@@ -12,6 +12,8 @@ from .._models import BaseModel
 __all__ = [
     "SystemList",
     "System",
+    "SystemAuth",
+    "SystemAuthField",
     "SystemVerb",
     "VerbStatus",
     "Cursor",
@@ -44,11 +46,18 @@ __all__ = [
     "DeviceProof",
     "ConnectionList",
     "Connection",
+    "ConnectionAuth",
     "ConnectionsListQuery",
     "ConnectionCreate",
     "ConnectionUpdate",
+    "CalendarMap",
     "ConnectionTestResult",
     "ConnectionTestResultStep",
+    "ConnectionOAuthStart",
+    "ConnectionOAuthStarted",
+    "ConnectionSecretsSet",
+    "ConnectionSecretsDelete",
+    "ConnectionInbound",
     "ConnectionHealth",
     "CapabilitySet",
     "VerbCapability",
@@ -142,6 +151,10 @@ __all__ = [
     "Appointment",
     "AppointmentSource",
     "AppointmentsListSiteQuery",
+    "SiteBusyList",
+    "BusyInterval",
+    "BusySource",
+    "AppointmentsBusySiteQuery",
     "LaunchCreate",
     "Launch",
     "PatientList",
@@ -202,7 +215,10 @@ __all__ = [
     "AppointmentsListSlotsQuery",
     "AppointmentList",
     "AppointmentsListQuery",
+    "BusyIntervalList",
+    "AppointmentsBusyQuery",
     "AppointmentBookPlanRequest",
+    "AppointmentBookPlanRequestSource",
     "AppointmentCancelPlanRequest",
     "ReferralOrderPlanRequest",
     "Referral",
@@ -241,11 +257,17 @@ class System(BaseModel):
     """Stable system id, for example `duria`."""
     name: str
     vendor: str
-    kind: Union[Literal["pvs", "kis", "kis_module", "therapy", "billing"], str]
+    kind: Union[Literal["pvs", "kis", "kis_module", "therapy", "billing", "calendar"], str]
+    """`calendar`: a calendar or booking service in the cloud (Google Calendar, Microsoft 365), `placement: cloud`.
+    """
     protocols: List[str]
     placement: Union[Literal["hub", "cloud"], str]
     """`hub`: the adapter runs in the hub inside the practice or hospital network. `cloud`: it runs in Connect.
     """
+    placements: Optional[List[Union[Literal["hub", "cloud"], str]]] = None
+    """Only for a system that runs in either place (`caldav-ics`: a calendar in the practice network or on the internet). `placement` is the default; `connections.create` takes the other with `placement`. `auth` then describes the sign-in of a cloud connection; a hub connection keeps its secrets on the hub.
+    """
+    auth: Optional[SystemAuth] = None
     proof: Union[Literal["live-customer", "demo-box", "simulator", "code-only", "docs-only", "none"], str]
     """Strongest proof that we can talk to the system."""
     licence_type: Union[Literal["included", "per_user", "per_site", "tbd"], str]
@@ -255,6 +277,25 @@ class System(BaseModel):
     note: Optional[str] = None
     """Short public remark on the system, for example a limit of the vendor interface."""
     docs_url: Optional[str] = None
+
+
+class SystemAuth(BaseModel):
+    """How a practice signs in to a cloud system (`placement: cloud`). Hub systems have none."""
+    kind: Union[Literal["oauth2", "fields", "none"], str]
+    provider: Optional[str] = None
+    """`oauth2`: the MediSync app at the provider, `google` or `microsoft`."""
+    scopes: Optional[List[str]] = None
+    """`oauth2`: the scopes Connect asks for."""
+    fields_: Optional[List[SystemAuthField]] = Field(default=None, alias="fields")
+    """`fields`: the values the practice copies."""
+
+
+class SystemAuthField(BaseModel):
+    name: str
+    kind: Union[Literal["text", "url", "password"], str]
+    required: bool
+    label: Optional[str] = None
+    """The label the dashboard shows (German)."""
 
 
 class SystemVerb(BaseModel):
@@ -540,9 +581,32 @@ class Connection(BaseModel):
     vendor_version: Optional[str] = None
     """Version the hub read from the system."""
     settings: Optional[Dict[str, Any]] = None
-    """Non-secret settings. Credentials stay in the hub and never pass this API."""
+    """Non-secret settings. Credentials of a hub connection stay in the hub and never pass this API. A cloud connection's credentials go in once, write only (`connections.oauthStart`, `connections.setSecrets`), and are never answered. `calendar_map` (a `CalendarMap`) says which member each calendar of the connection belongs to; the cloud keeps it, the hub never sees it.
+    """
+    auth: Optional[ConnectionAuth] = None
     created_at: str
     updated_at: str
+
+
+class ConnectionAuth(BaseModel):
+    """The sign-in of a connection with `placement: cloud`. Only states, never a token or a value. A hub connection has no `auth`.
+    """
+    kind: Union[Literal["oauth2", "fields", "none"], str]
+    """`oauth2`: the practice signs in at the provider (`connections.oauthStart`). `fields`: the practice copies values (`connections.setSecrets`). `none`: nothing to sign in.
+    """
+    state: Union[Literal["missing", "ok", "broken"], str]
+    """`missing`: no sign-in yet, or disconnected. `ok`: signed in. `broken`: the provider refused the grant (revoked, expired, a scope missing): the practice signs in again; reads answer 502 `connection_failed` with `reason: auth_broken`.
+    """
+    reason: Optional[str] = None
+    """The code of the last refusal: `auth_broken`, `scope_missing`, `code_refused`, `access_denied`, `disconnected`, `server_changed` (copied fields set for another `settings.url`; set them again).
+    """
+    expires_at: Optional[str] = None
+    """When the current access token ends. Connect refreshes it before."""
+    scopes: Optional[List[str]] = None
+    """The scopes the provider granted."""
+    fields_set: Optional[List[str]] = None
+    """The names of the copied fields that are set."""
+    updated_at: Optional[str] = None
 
 
 class ConnectionsListQuery(BaseModel):
@@ -559,12 +623,18 @@ class ConnectionCreate(BaseModel):
     system_id: str
     name: Optional[str] = None
     settings: Optional[Dict[str, Any]] = None
+    placement: Optional[Union[Literal["hub", "cloud"], str]] = None
+    """Only for a system with `placements`: where the connection runs. Default: the system's `placement`. Another placement than the system's answers 400 (`param: placement`).
+    """
 
 
 class ConnectionUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[Union[Literal["active", "disabled"], str]] = None
     settings: Optional[Dict[str, Any]] = None
+    calendar_map: Optional[CalendarMap] = None
+    """Sets `settings.calendar_map` alone; the other settings stay. `null` removes it. A member id must name a member of the connection's site.
+    """
 
 
 class ConnectionTestResult(BaseModel):
@@ -582,6 +652,44 @@ class ConnectionTestResultStep(BaseModel):
     name: str
     ok: bool
     message: Optional[str] = None
+
+
+class ConnectionOAuthStart(BaseModel):
+    member_id: str
+    """The member who signs in for the practice. An active member of the connection's site; a partner key's own member.
+    """
+    return_url: Optional[str] = None
+    """Where the browser goes after the sign-in, with `connection_id`, `status` and `reason` added to the query. An https URL on the origin of a MediSync dashboard, no fragment. Without it Connect shows a short page.
+    """
+
+
+class ConnectionOAuthStarted(BaseModel):
+    connection_id: str
+    authorize_url: str
+    """Connect's start page of this sign-in (`/oauth/start`). Open it in the practice's browser: it ties the sign-in to that browser with a cookie and sends it on to the provider's page with PKCE. It opens once; the sign-in finishes only in the browser that opened it.
+    """
+    expires_at: str
+    """The sign-in works until then (15 minutes)."""
+
+
+class ConnectionSecretsSet(BaseModel):
+    fields_: Dict[str, str] = Field(alias="fields")
+    """The values by field name (`System.auth.fields`). Every required field; at most 16; each up to 4096 characters.
+    """
+    member_id: Optional[str] = None
+    """The member who sets them, for the audit log."""
+
+
+class ConnectionSecretsDelete(BaseModel):
+    member_id: Optional[str] = None
+    """The member who disconnects, for the audit log."""
+
+
+class ConnectionInbound(BaseModel):
+    connection_id: str
+    url: str
+    """The webhook address for the system's settings. It holds a token; show it to the practice's admin only.
+    """
 
 
 class ConnectionHealth(BaseModel):
@@ -1236,6 +1344,8 @@ class Event(BaseModel):
     connection_id: Optional[str] = None
     created_at: str
     data: Dict[str, Any]
+    """Codes and ids only. `busy.changed`: `connection_id`, and `from` and `to`, the days (YYYY-MM-DD, German time, inclusive) in which busy times of the connection changed. Read `appointments.busySite` for those days again. A hub sends it when its system reports a change; for a cloud connection Connect polls the system every five minutes and takes its webhook calls (`connections.getInbound`).
+    """
 
 
 class EventsListQuery(BaseModel):
@@ -1412,7 +1522,7 @@ class PatientContext(BaseModel):
     case_ref: Optional[CaseRef] = None
     """The hospital case the patient is in, when the system names one (HL7 ADT: PV1-19). A KIS files a document into a case: pass it on as `case_ref` of the document, or of the request of `diagnosis.write`, `diagnosis.write.text`, `document.attach` and `medication.order`.
     """
-    source: Union[Literal["gdt", "deep_link", "hl7_adt", "smart_launch"], str]
+    source: Union[Literal["gdt", "deep_link", "hl7_adt", "smart_launch", "fhir_subscription", "vdds_media"], str]
     received_at: str
     accepted_at: Optional[str] = None
     expires_at: str
@@ -1523,6 +1633,80 @@ class AppointmentsListSiteQuery(BaseModel):
     """
     cursor: Optional[str] = None
     """`next_cursor` of the previous page."""
+    limit: Optional[int] = None
+    """Page size."""
+
+
+class SiteBusyList(BaseModel):
+    simulated: Optional[bool] = None
+    """Present and true when the simulated hub of a test site gave this answer. No real system was reached.
+    """
+    data: List[BusyInterval]
+    """The intervals of every source, by `start`, then `source_id`, then `connection_id`. One page holds each interval once.
+    """
+    next_cursor: Cursor
+    complete: bool
+    """`true` only when every source is `ok` and complete. A caller that knows a system's calendar is not in use (a practice that books only in MediSync) may decide per source from `sources`.
+    """
+    sources: List[BusySource]
+    """One entry per connection of the site that was asked or skipped, in the order of the connections.
+    """
+
+
+class BusyInterval(BaseModel):
+    """A time a calendar is taken. No patient, no title, no reason. The cloud always sends `practitioner`, `null` where the system names no column.
+    """
+    start: str
+    end: str
+    """The end, not included."""
+    practitioner: Optional[str] = None
+    """The calendar, column or resource the time is taken in, as the system names it: the DURIA column, HL7 AIG, AIL, AIP or AIS-3.1, the ISiK HealthcareService or Practitioner reference. `null` when the system names none (MEDICAL OFFICE syncs one Terminzone per connection). The key of `calendar_map`.
+    """
+    source_id: str
+    """The id of the busy time on this connection, stable while it exists. Where the system has an appointment id, it is the `id` that `appointment.list` gives the same appointment. Keep copies by `connection_id` and `source_id`.
+    """
+    member_id: Optional[str] = None
+    """The site member this time blocks, from the connection's `calendar_map`. `null`: it blocks the whole practice (no entry for its `practitioner` and no `*` entry, or the entry `practice`). Set by the cloud.
+    """
+    connection_id: Optional[str] = None
+    """The connection the interval came from. Set in `appointments.busySite`."""
+    system_id: Optional[str] = None
+    """The system of that connection. Set in `appointments.busySite`."""
+
+
+class BusySource(BaseModel):
+    connection_id: str
+    system_id: str
+    status: Union[Literal["ok", "unsupported", "failed"], str]
+    """`ok`: the connection answered, `count` intervals are in `data` (before paging). `unsupported`: Connect cannot read busy times of this system (`reason`: the capability reason, or `needs_patient_id` for a system that lists appointments per patient only). A verb this key may not call at this site because it is not proven on the system yet (`verb_unverified` on one connection) is `unsupported` with `reason: not_tested` here: no source, not a failed one. So is a cloud connection whose sign-in never finished or was removed (`reason: not_signed_in`). One that signed in and broke later is `failed`. `failed`: the read failed, `reason` names the error code (`agent_offline`, `connection_failed`, ...).
+    """
+    via: Optional[Union[Literal["busy", "list"], str]] = None
+    """`busy`: read with `appointment.busy`. `list`: read with `appointment.list` and reduced in the cloud (a hub before `appointment.busy`).
+    """
+    complete: bool
+    """`true` when the source answered and its answer is complete. Always `false` for `unsupported` and `failed`.
+    """
+    reason: Optional[str] = None
+    """Why the source is not `ok`, or why an `ok` source is not complete (the codes of `BusyIntervalList.reason`).
+    """
+    synced_at: Optional[str] = None
+    count: int
+
+
+class AppointmentsBusySiteQuery(BaseModel):
+    from_: str = Field(alias="from")
+    """First day, inclusive (YYYY-MM-DD, German time)."""
+    to: str
+    """Last day, inclusive (YYYY-MM-DD, German time). At most 91 days after `from`, so one call covers 92 days.
+    """
+    member_id: Optional[str] = None
+    """The member the read runs for. Busy times carry no patient data, so it is optional. When given, it must be an active member of the site.
+    """
+    connection_id: Optional[str] = None
+    """Ask only this connection of the site."""
+    cursor: Optional[str] = None
+    """`next_cursor` of the previous page. Every page is a new read of the systems, so the cursor names the last interval of the page (its `start`, `source_id` and `connection_id`), not a position: the next page starts after that interval. A busy time that goes or comes between two pages moves no other one across the border; one that comes before the cursor is on no page of this walk (read again after `busy.changed`). A cursor of a page before 20.11.2026 (a position) still works in this release.
+    """
     limit: Optional[int] = None
     """Page size."""
 
@@ -2073,6 +2257,9 @@ class AppointmentSlot(BaseModel):
     end: str
     practitioner: Optional[str] = None
     status: Union[Literal["free", "busy"], str]
+    appointment_types: Optional[List[str]] = None
+    """The appointment types this slot takes, where the system types its slots (DURIA the Terminart id, ISiK the service type code).
+    """
 
 
 class AppointmentsListSlotsQuery(BaseModel):
@@ -2080,6 +2267,12 @@ class AppointmentsListSlotsQuery(BaseModel):
     """First day, inclusive (YYYY-MM-DD)."""
     to: Optional[str] = None
     """Last day, inclusive (YYYY-MM-DD)."""
+    practitioner: Optional[str] = None
+    """Only the slots of this calendar or column, the `practitioner` value of a slot. A system that names no column (MEDICAL OFFICE) has no slot with a `practitioner`.
+    """
+    appointment_type: Optional[str] = None
+    """Only the slots that take this appointment type, one value of `appointment_types` of a slot (DURIA: the id of the Terminart; ISiK: the code of the service type). A slot without `appointment_types` is kept: its system does not type its slots.
+    """
     cursor: Optional[str] = None
     """`next_cursor` of the previous page."""
     limit: Optional[int] = None
@@ -2111,10 +2304,60 @@ class AppointmentsListQuery(BaseModel):
     """Page size."""
 
 
+class BusyIntervalList(BaseModel):
+    simulated: Optional[bool] = None
+    """Present and true when the simulated hub of a test site gave this answer. No real system was reached.
+    """
+    data: List[BusyInterval]
+    """By `start`, then `source_id`."""
+    next_cursor: Cursor
+    complete: bool
+    """`true`: every busy time of the range is in the answer (over all pages). `false`: busy times may be missing, `reason` says why. Treat a time without an interval as unknown then, not as free.
+    """
+    reason: Optional[str] = None
+    """Only with `complete: false`. `not_synced`: the system has not synced its calendar with the hub lately (MEDICAL OFFICE: no Abgleich for 15 minutes, or since the hub started). `feed_only`: the hub knows only the appointments whose messages it received (HL7 KIS). `cut`: more busy times than one answer holds. `past_days`: the range starts before today and the system syncs from today on (hubs before 20.11.2026 only: a past day cannot be booked, so it no longer makes an answer incomplete). `recurring`: a recurring event the hub does not expand. `first_pages_only`: the system had more pages than the hub reads (ISiK). `via_list`: read with `appointment.list` (a hub before `appointment.busy`), which cannot say whether its copy is complete. `unreadable`: an appointment or busy time of the system has no readable times or id (CalDAV and iCal feeds, eTermin, Cal.com, ISiK), or Connect dropped a busy time of the answer it could not read (a `source_id` over 200 characters). New codes may appear.
+    """
+    synced_at: Optional[str] = None
+    """When the system last synced its calendar with the hub, where the hub knows it (MEDICAL OFFICE's last Abgleich, the last SIU message of an HL7 KIS).
+    """
+
+
+class AppointmentsBusyQuery(BaseModel):
+    from_: str = Field(alias="from")
+    """First day, inclusive (YYYY-MM-DD, German time)."""
+    to: str
+    """Last day, inclusive (YYYY-MM-DD, German time). At most 91 days after `from`, so one call covers 92 days.
+    """
+    practitioner: Optional[str] = None
+    """Only the intervals of this calendar or column, the `practitioner` value of an interval."""
+    member_id: Optional[str] = None
+    """The member the read runs for. Busy times carry no patient data, so it is optional. When given, it must be an active member of the site.
+    """
+    cursor: Optional[str] = None
+    """`next_cursor` of the previous page. Every page is a new read of the systems, so the cursor names the last interval of the page (its `start`, `source_id` and `connection_id`), not a position: the next page starts after that interval. A busy time that goes or comes between two pages moves no other one across the border; one that comes before the cursor is on no page of this walk (read again after `busy.changed`). A cursor of a page before 20.11.2026 (a position) still works in this release.
+    """
+    limit: Optional[int] = None
+    """Page size."""
+
+
 class AppointmentBookPlanRequest(BaseModel):
     patient: PatientRef
     slot_id: str
+    """A slot of `appointments.listSlots`. A calendar connection (`google-calendar`, `microsoft-365`, `caldav-ics`) takes the time of the booking instead: `<start>/<end>`, two RFC 3339 times in UTC (`2026-11-23T08:00:00Z/2026-11-23T08:30:00Z`), at most one day. `caldav-ics` also takes its older form `cal-busy:<start>:<minutes>`.
+    """
     reason: Optional[str] = None
+    source: Optional[AppointmentBookPlanRequestSource] = None
+    """The calling app and its id of the booking. A calendar connection needs `external_id`: it keys the neutral "Belegt" event by it, so a repeat or a moved booking writes the same event and `appointments.planCancel` with the same id as `appointment_id` deletes it. Without `source`, the document names the calling app only.
+    """
+
+
+class AppointmentBookPlanRequestSource(BaseModel):
+    """The calling app and its id of the booking. A calendar connection needs `external_id`: it keys the neutral "Belegt" event by it, so a repeat or a moved booking writes the same event and `appointments.planCancel` with the same id as `appointment_id` deletes it. Without `source`, the document names the calling app only.
+    """
+    app: str
+    """Calling app, for example `scribe`."""
+    external_id: Optional[str] = None
+    """The caller's own id of the booking, at most 200 characters."""
 
 
 class AppointmentCancelPlanRequest(BaseModel):
@@ -2276,7 +2519,7 @@ class ErrorObject(BaseModel):
     verb: Optional[Verb] = None
     connection_id: Optional[str] = None
     reason: Optional[str] = None
-    """Capability reason, for example `system_cannot`, `protocol_cannot`, `not_tested`. With `forbidden`, `member_secret` means the member has not linked their own account of the system in MediSync Connect (DURIA); `admin_assertion_required` means a partner key sent no valid `admin_assertion`; `other_device` means no valid `device_proof`; `not_site_setup` means only the app that set up the site (or MediSync) may change this, and an installed app changes only the members it added; `test_key` means a test key may not change an app that has a live project; `app_not_verified` means MediSync has not verified the app for live sites, `no_app` that the project has no app; `role` means the member's role may not do this; `needs_kontext` means the system answers only for the patient open in it, and the message names the step for that system (T2med needs the patient opened in T2med and MediSync started there, MEDICAL OFFICE needs the patient open in MEDICAL OFFICE or MediSync started from its Krankenblatt, QUINCY needs the MediSync button of the BDT-Anschluss pressed in the patient's Karteikarte); a read for another patient than the open one, or after the export file is older than the connection allows, gets the same reason; the call may succeed later. `no_desk_session` means the system reads for the member only through their MediSync Connect desk (T2med) and the member has no desk session at the site; the call may succeed after the member signs in to the desk.
+    """Capability reason, for example `system_cannot`, `protocol_cannot`, `not_tested`. With `forbidden`, `member_secret` means the member has not linked their own account of the system in MediSync Connect (DURIA); `admin_assertion_required` means a partner key sent no valid `admin_assertion`; `other_device` means no valid `device_proof`; `not_site_setup` means only the app that set up the site (or MediSync) may change this, and an installed app changes only the members it added; `test_key` means a test key may not change an app that has a live project; `app_not_verified` means MediSync has not verified the app for live sites, `no_app` that the project has no app; `role` means the member's role may not do this; `needs_kontext` means the system answers only for the patient open in it, and the message names the step for that system (T2med needs the patient opened in T2med and MediSync started there, MEDICAL OFFICE needs the patient open in MEDICAL OFFICE or MediSync started from its Krankenblatt, QUINCY needs the MediSync button of the BDT-Anschluss pressed in the patient's Karteikarte); a read for another patient than the open one, or after the export file is older than the connection allows, gets the same reason; the call may succeed later. `no_desk_session` means the system reads for the member only through their MediSync Connect desk (T2med) and the member has no desk session at the site; the call may succeed after the member signs in to the desk. `untested_system` (`connections.create`) means the system has not run against the real product yet, so only MediSync's test sites and the pilot sites of that system may connect it.
     """
     alternative: Optional[Verb] = None
     retryable: Optional[bool] = None
@@ -2314,7 +2557,11 @@ AdminAssertion = str
 """The member assertion of an active admin of the site, as MediSync Connect on the PC holds it after the admin signed in. A partner key sends it for a change the hub enforces (a practitioner link, a new role); without it the call answers 403 `forbidden` with `reason` `admin_assertion_required`. MediSync's own servers do not send it. An admin without an assertion makes the change in MediSync Connect on the PC.
 """
 
-Verb = Union[Literal["patient.context", "context.events", "context.launch", "patient.search", "patient.read", "patient.insurance", "practitioner.list", "record.slots", "record.read", "record.history", "record.write", "record.write.batch", "diagnosis.read", "diagnosis.write", "diagnosis.write.text", "medication.read", "medication.order", "medication.order.status", "observation.read", "document.list", "document.fetch", "document.attach", "appointment.slots", "appointment.list", "appointment.book", "appointment.cancel", "referral.order", "referral.status", "billing.cases", "billing.read", "billing.propose", "billing.export.read"], str]
+CalendarMap = Dict[str, str]
+"""Which site member each calendar or column of a connection belongs to, for `appointments.busySite`. The key is the `practitioner` value of a busy interval, or `*` for every interval whose `practitioner` is `null` or has no key of its own. The value is a member id of the site, or `practice` when the calendar blocks everyone. An interval without an entry blocks the whole practice: that is the safe side. A member who is no longer active counts as `practice`.
+"""
+
+Verb = Union[Literal["patient.context", "context.events", "context.launch", "patient.search", "patient.read", "patient.insurance", "practitioner.list", "record.slots", "record.read", "record.history", "record.write", "record.write.batch", "diagnosis.read", "diagnosis.write", "diagnosis.write.text", "medication.read", "medication.order", "medication.order.status", "observation.read", "document.list", "document.fetch", "document.attach", "appointment.slots", "appointment.list", "appointment.busy", "appointment.book", "appointment.cancel", "referral.order", "referral.status", "billing.cases", "billing.read", "billing.propose", "billing.export.read"], str]
 """A Connect verb. New verbs are added over time; clients must accept unknown values."""
 
 PlacementReason = Union[Literal["slot_id", "label", "synonym", "kind", "single_slot", "fallback", "no_slot"], str]
@@ -2328,7 +2575,7 @@ TransferStatus = Union[Literal["queued", "delivered", "completed", "partially_co
 WriteVerb = Union[Literal["record.write", "record.write.batch", "diagnosis.write", "diagnosis.write.text", "medication.order", "document.attach", "appointment.book", "appointment.cancel", "referral.order", "billing.propose"], str]
 """A verb that writes into the target system. It always goes plan, release, transfer."""
 
-EventType = Union[Literal["entry.filed", "entry.rejected", "entry.in_doubt", "document.received", "connection.capabilities_changed", "transfer.reopened", "installation.created", "installation.updated", "installation.revoked"], str]
+EventType = Union[Literal["entry.filed", "entry.rejected", "entry.in_doubt", "document.received", "connection.capabilities_changed", "busy.changed", "transfer.reopened", "installation.created", "installation.updated", "installation.revoked"], str]
 """Event type. New types are added over time."""
 
 LicenceType = Union[Literal["included", "per_user", "per_site"], str]
@@ -2344,6 +2591,8 @@ ErrorCode = Union[Literal["invalid_request", "unauthenticated", "invalid_token",
 
 SystemList.model_rebuild()
 System.model_rebuild()
+SystemAuth.model_rebuild()
+SystemAuthField.model_rebuild()
 SystemVerb.model_rebuild()
 SystemsListQuery.model_rebuild()
 TemplateList.model_rebuild()
@@ -2371,11 +2620,17 @@ PairingApprove.model_rebuild()
 DeviceProof.model_rebuild()
 ConnectionList.model_rebuild()
 Connection.model_rebuild()
+ConnectionAuth.model_rebuild()
 ConnectionsListQuery.model_rebuild()
 ConnectionCreate.model_rebuild()
 ConnectionUpdate.model_rebuild()
 ConnectionTestResult.model_rebuild()
 ConnectionTestResultStep.model_rebuild()
+ConnectionOAuthStart.model_rebuild()
+ConnectionOAuthStarted.model_rebuild()
+ConnectionSecretsSet.model_rebuild()
+ConnectionSecretsDelete.model_rebuild()
+ConnectionInbound.model_rebuild()
 ConnectionHealth.model_rebuild()
 CapabilitySet.model_rebuild()
 VerbCapability.model_rebuild()
@@ -2463,6 +2718,10 @@ SiteAppointmentList.model_rebuild()
 Appointment.model_rebuild()
 AppointmentSource.model_rebuild()
 AppointmentsListSiteQuery.model_rebuild()
+SiteBusyList.model_rebuild()
+BusyInterval.model_rebuild()
+BusySource.model_rebuild()
+AppointmentsBusySiteQuery.model_rebuild()
 LaunchCreate.model_rebuild()
 Launch.model_rebuild()
 PatientList.model_rebuild()
@@ -2523,7 +2782,10 @@ AppointmentSlot.model_rebuild()
 AppointmentsListSlotsQuery.model_rebuild()
 AppointmentList.model_rebuild()
 AppointmentsListQuery.model_rebuild()
+BusyIntervalList.model_rebuild()
+AppointmentsBusyQuery.model_rebuild()
 AppointmentBookPlanRequest.model_rebuild()
+AppointmentBookPlanRequestSource.model_rebuild()
 AppointmentCancelPlanRequest.model_rebuild()
 ReferralOrderPlanRequest.model_rebuild()
 Referral.model_rebuild()

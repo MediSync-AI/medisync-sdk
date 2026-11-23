@@ -27,6 +27,12 @@ public final class ConnectSystem extends JsonModel {
   @JsonProperty("placement")
   private @Nullable String placement;
 
+  @JsonProperty("placements")
+  private @Nullable List<String> placements;
+
+  @JsonProperty("auth")
+  private @Nullable SystemAuth auth;
+
   @JsonProperty("proof")
   private @Nullable String proof;
 
@@ -93,7 +99,7 @@ public final class ConnectSystem extends JsonModel {
     return this;
   }
 
-  /** The <code>kind</code> field. */
+  /** <code>calendar</code>: a calendar or booking service in the cloud (Google Calendar, Microsoft 365), <code>placement: cloud</code>. */
   public String getKind() {
     return kind;
   }
@@ -138,6 +144,38 @@ public final class ConnectSystem extends JsonModel {
   /** Sets <code>placement</code> and returns this object. */
   public ConnectSystem placement(String value) {
     setPlacement(value);
+    return this;
+  }
+
+  /** Only for a system that runs in either place (<code>caldav-ics</code>: a calendar in the practice network or on the internet). <code>placement</code> is the default; <code>connections.create</code> takes the other with <code>placement</code>. <code>auth</code> then describes the sign-in of a cloud connection; a hub connection keeps its secrets on the hub. */
+  public @Nullable List<String> getPlacements() {
+    return placements;
+  }
+
+  /** Sets <code>placements</code>. */
+  public void setPlacements(@Nullable List<String> value) {
+    this.placements = value;
+  }
+
+  /** Sets <code>placements</code> and returns this object. */
+  public ConnectSystem placements(@Nullable List<String> value) {
+    setPlacements(value);
+    return this;
+  }
+
+  /** The <code>auth</code> field. */
+  public @Nullable SystemAuth getAuth() {
+    return auth;
+  }
+
+  /** Sets <code>auth</code>. */
+  public void setAuth(@Nullable SystemAuth value) {
+    this.auth = value;
+  }
+
+  /** Sets <code>auth</code> and returns this object. */
+  public ConnectSystem auth(@Nullable SystemAuth value) {
+    setAuth(value);
     return this;
   }
 

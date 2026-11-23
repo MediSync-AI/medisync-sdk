@@ -2,6 +2,22 @@
 
 All four packages (npm and JSR `medisync`, PyPI `medisync`, Maven `me.medisync:medisync`, NuGet `MediSync`) share one version.
 
+## 0.3.0
+
+The SDKs follow the public API of 23.11.2026.
+
+- MediSync Connect, six new methods: `connect.appointments.busy` and `connect.appointments.busySite` (busy times of a connection or of a site), `connect.connections.getInbound`, `connect.connections.oauthStart`, `connect.connections.setSecrets` and `connect.connections.deleteSecrets`.
+- Speech: the `language` list has all 100 languages the speech service takes.
+- Live stream: `flushed` is now part of the AsyncAPI spec. TypeScript and Python use the type from the spec under the same name, `StreamFlushed`. Java and .NET keep the class of 0.2.0.
+- `segment.start` and `segment.end` of a transcript are required numbers in the spec. The server always sends both. TypeScript: `number`, no longer optional. Python: `float`, no longer `Optional`. .NET: `double`, no longer `double?`. Java keeps `Double` and drops `@Nullable`.
+- Python: `StreamReconnecting.type` is `Literal["reconnecting"]`. A check `event.type == "transcript"` now narrows a stream event to `StreamTranscript` in strict type checkers.
+
+Code that reads the stream needs no change. Code that builds these objects itself, for example in tests, can need one:
+
+- .NET: `segment.Start ?? 0`, `.HasValue` or `.Value` on `Start` and `End` no longer compile. Use the value directly.
+- Python: `StreamTranscriptSegment()` without `start` and `end` fails validation. `StreamFlushed(processed_until=...)` now needs `type="flushed"` as well.
+- TypeScript: an object literal of type `StreamTranscriptSegment` needs `start` and `end`.
+
 ## 0.2.0
 
 The live stream reads the new `flushed` message of the speech service.

@@ -27,6 +27,7 @@ __all__ = [
     "StreamTranscriptWord",
     "StreamTranscriptSpeaker",
     "StreamAck",
+    "StreamFlushed",
     "StreamLanguage",
     "StreamSpeakerRoles",
     "StreamSpeakerRole",
@@ -139,8 +140,8 @@ class StreamTranscript(BaseModel):
 
 
 class StreamTranscriptSegment(BaseModel):
-    start: Optional[float] = None
-    end: Optional[float] = None
+    start: float
+    end: float
 
 
 class StreamTranscriptWord(BaseModel):
@@ -159,8 +160,14 @@ class StreamTranscriptSpeaker(BaseModel):
 class StreamAck(BaseModel):
     type: Literal["ack"]
     processed_until: float
-    """Seconds of audio the server has read. Transcripts for audio before this point can still arrive after the ack. If the last stretch was silence, none does.
+    """Seconds of audio the server has read, with 3 decimals. Transcripts for audio before this point can still arrive after the ack, then `flushed` with the same value. If the last stretch was silence, no transcript comes.
     """
+
+
+class StreamFlushed(BaseModel):
+    type: Literal["flushed"]
+    processed_until: float
+    """The same value as in the `ack` of the same `end_utterance`, in seconds."""
 
 
 class StreamLanguage(BaseModel):
@@ -213,7 +220,7 @@ class StreamError(BaseModel):
     """
     fatal: bool
 
-StreamServerMessage = Union[StreamSessionReady, StreamTranscript, StreamAck, StreamLanguage, StreamSpeakerRoles, StreamBackpressure, StreamStatus, StreamError]
+StreamServerMessage = Union[StreamSessionReady, StreamTranscript, StreamAck, StreamFlushed, StreamLanguage, StreamSpeakerRoles, StreamBackpressure, StreamStatus, StreamError]
 """A message the server sends on the live stream. Switch on `type`."""
 
 StreamClientMessage = Union[StreamConfig, StreamTerms, StreamEndUtterance, StreamClose]
@@ -236,6 +243,7 @@ StreamTranscriptSegment.model_rebuild()
 StreamTranscriptWord.model_rebuild()
 StreamTranscriptSpeaker.model_rebuild()
 StreamAck.model_rebuild()
+StreamFlushed.model_rebuild()
 StreamLanguage.model_rebuild()
 StreamSpeakerRoles.model_rebuild()
 StreamSpeakerRole.model_rebuild()

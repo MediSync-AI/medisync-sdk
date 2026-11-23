@@ -13,10 +13,14 @@ export interface System {
   id: string;
   name: string;
   vendor: string;
-  kind: "pvs" | "kis" | "kis_module" | "therapy" | "billing" | (string & {});
+  /** `calendar`: a calendar or booking service in the cloud (Google Calendar, Microsoft 365), `placement: cloud`. */
+  kind: "pvs" | "kis" | "kis_module" | "therapy" | "billing" | "calendar" | (string & {});
   protocols: string[];
   /** `hub`: the adapter runs in the hub inside the practice or hospital network. `cloud`: it runs in Connect. */
   placement: "hub" | "cloud" | (string & {});
+  /** Only for a system that runs in either place (`caldav-ics`: a calendar in the practice network or on the internet). `placement` is the default; `connections.create` takes the other with `placement`. `auth` then describes the sign-in of a cloud connection; a hub connection keeps its secrets on the hub. */
+  placements?: Array<"hub" | "cloud" | (string & {})>;
+  auth?: SystemAuth;
   /** Strongest proof that we can talk to the system. */
   proof: "live-customer" | "demo-box" | "simulator" | "code-only" | "docs-only" | "none" | (string & {});
   /** Licence type of the connector. `tbd` until decided. */
@@ -26,6 +30,25 @@ export interface System {
   /** Short public remark on the system, for example a limit of the vendor interface. */
   note?: string;
   docs_url?: string;
+}
+
+/** How a practice signs in to a cloud system (`placement: cloud`). Hub systems have none. */
+export interface SystemAuth {
+  kind: "oauth2" | "fields" | "none" | (string & {});
+  /** `oauth2`: the MediSync app at the provider, `google` or `microsoft`. */
+  provider?: string;
+  /** `oauth2`: the scopes Connect asks for. */
+  scopes?: string[];
+  /** `fields`: the values the practice copies. */
+  fields?: SystemAuthField[];
+}
+
+export interface SystemAuthField {
+  name: string;
+  kind: "text" | "url" | "password" | (string & {});
+  required: boolean;
+  /** The label the dashboard shows (German). */
+  label?: string;
 }
 
 export interface SystemVerb {
@@ -301,10 +324,28 @@ export interface Connection {
   adapter?: string | null;
   /** Version the hub read from the system. */
   vendor_version?: string | null;
-  /** Non-secret settings. Credentials stay in the hub and never pass this API. */
+  /** Non-secret settings. Credentials of a hub connection stay in the hub and never pass this API. A cloud connection's credentials go in once, write only (`connections.oauthStart`, `connections.setSecrets`), and are never answered. `calendar_map` (a `CalendarMap`) says which member each calendar of the connection belongs to; the cloud keeps it, the hub never sees it. */
   settings?: Record<string, unknown>;
+  auth?: ConnectionAuth;
   created_at: string;
   updated_at: string;
+}
+
+/** The sign-in of a connection with `placement: cloud`. Only states, never a token or a value. A hub connection has no `auth`. */
+export interface ConnectionAuth {
+  /** `oauth2`: the practice signs in at the provider (`connections.oauthStart`). `fields`: the practice copies values (`connections.setSecrets`). `none`: nothing to sign in. */
+  kind: "oauth2" | "fields" | "none" | (string & {});
+  /** `missing`: no sign-in yet, or disconnected. `ok`: signed in. `broken`: the provider refused the grant (revoked, expired, a scope missing): the practice signs in again; reads answer 502 `connection_failed` with `reason: auth_broken`. */
+  state: "missing" | "ok" | "broken" | (string & {});
+  /** The code of the last refusal: `auth_broken`, `scope_missing`, `code_refused`, `access_denied`, `disconnected`, `server_changed` (copied fields set for another `settings.url`; set them again). */
+  reason?: string;
+  /** When the current access token ends. Connect refreshes it before. */
+  expires_at?: string;
+  /** The scopes the provider granted. */
+  scopes?: string[];
+  /** The names of the copied fields that are set. */
+  fields_set?: string[];
+  updated_at?: string;
 }
 
 export interface ConnectionsListQuery {
@@ -321,13 +362,20 @@ export interface ConnectionCreate {
   system_id: string;
   name?: string;
   settings?: Record<string, unknown>;
+  /** Only for a system with `placements`: where the connection runs. Default: the system's `placement`. Another placement than the system's answers 400 (`param: placement`). */
+  placement?: "hub" | "cloud" | (string & {});
 }
 
 export interface ConnectionUpdate {
   name?: string;
   status?: "active" | "disabled" | (string & {});
   settings?: Record<string, unknown>;
+  /** Sets `settings.calendar_map` alone; the other settings stay. `null` removes it. A member id must name a member of the connection's site. */
+  calendar_map?: CalendarMap | null;
 }
+
+/** Which site member each calendar or column of a connection belongs to, for `appointments.busySite`. The key is the `practitioner` value of a busy interval, or `*` for every interval whose `practitioner` is `null` or has no key of its own. The value is a member id of the site, or `practice` when the calendar blocks everyone. An interval without an entry blocks the whole practice: that is the safe side. A member who is no longer active counts as `practice`. */
+export type CalendarMap = Record<string, string>;
 
 export interface ConnectionTestResult {
   /** Present and true when the simulated hub of a test site gave this answer. No real system was reached. */
@@ -343,6 +391,39 @@ export interface ConnectionTestResultStep {
   name: string;
   ok: boolean;
   message?: string;
+}
+
+export interface ConnectionOAuthStart {
+  /** The member who signs in for the practice. An active member of the connection's site; a partner key's own member. */
+  member_id: string;
+  /** Where the browser goes after the sign-in, with `connection_id`, `status` and `reason` added to the query. An https URL on the origin of a MediSync dashboard, no fragment. Without it Connect shows a short page. */
+  return_url?: string;
+}
+
+export interface ConnectionOAuthStarted {
+  connection_id: string;
+  /** Connect's start page of this sign-in (`/oauth/start`). Open it in the practice's browser: it ties the sign-in to that browser with a cookie and sends it on to the provider's page with PKCE. It opens once; the sign-in finishes only in the browser that opened it. */
+  authorize_url: string;
+  /** The sign-in works until then (15 minutes). */
+  expires_at: string;
+}
+
+export interface ConnectionSecretsSet {
+  /** The values by field name (`System.auth.fields`). Every required field; at most 16; each up to 4096 characters. */
+  fields: Record<string, string>;
+  /** The member who sets them, for the audit log. */
+  member_id?: string;
+}
+
+export interface ConnectionSecretsDelete {
+  /** The member who disconnects, for the audit log. */
+  member_id?: string;
+}
+
+export interface ConnectionInbound {
+  connection_id: string;
+  /** The webhook address for the system's settings. It holds a token; show it to the practice's admin only. */
+  url: string;
 }
 
 export interface ConnectionHealth {
@@ -396,7 +477,7 @@ export interface VerbCapability {
 }
 
 /** A Connect verb. New verbs are added over time; clients must accept unknown values. */
-export type Verb = "patient.context" | "context.events" | "context.launch" | "patient.search" | "patient.read" | "patient.insurance" | "practitioner.list" | "record.slots" | "record.read" | "record.history" | "record.write" | "record.write.batch" | "diagnosis.read" | "diagnosis.write" | "diagnosis.write.text" | "medication.read" | "medication.order" | "medication.order.status" | "observation.read" | "document.list" | "document.fetch" | "document.attach" | "appointment.slots" | "appointment.list" | "appointment.book" | "appointment.cancel" | "referral.order" | "referral.status" | "billing.cases" | "billing.read" | "billing.propose" | "billing.export.read" | (string & {});
+export type Verb = "patient.context" | "context.events" | "context.launch" | "patient.search" | "patient.read" | "patient.insurance" | "practitioner.list" | "record.slots" | "record.read" | "record.history" | "record.write" | "record.write.batch" | "diagnosis.read" | "diagnosis.write" | "diagnosis.write.text" | "medication.read" | "medication.order" | "medication.order.status" | "observation.read" | "document.list" | "document.fetch" | "document.attach" | "appointment.slots" | "appointment.list" | "appointment.busy" | "appointment.book" | "appointment.cancel" | "referral.order" | "referral.status" | "billing.cases" | "billing.read" | "billing.propose" | "billing.export.read" | (string & {});
 
 export interface GrantList {
   /** Present and true when the simulated hub of a test site gave this answer. No real system was reached. */
@@ -958,7 +1039,7 @@ export interface TransferResolve {
 }
 
 /** Event type. New types are added over time. */
-export type EventType = "entry.filed" | "entry.rejected" | "entry.in_doubt" | "document.received" | "connection.capabilities_changed" | "transfer.reopened" | "installation.created" | "installation.updated" | "installation.revoked" | (string & {});
+export type EventType = "entry.filed" | "entry.rejected" | "entry.in_doubt" | "document.received" | "connection.capabilities_changed" | "busy.changed" | "transfer.reopened" | "installation.created" | "installation.updated" | "installation.revoked" | (string & {});
 
 export interface EventList {
   /** Present and true when the simulated hub of a test site gave this answer. No real system was reached. */
@@ -974,6 +1055,7 @@ export interface Event {
   site_id: string;
   connection_id?: string | null;
   created_at: string;
+  /** Codes and ids only. `busy.changed`: `connection_id`, and `from` and `to`, the days (YYYY-MM-DD, German time, inclusive) in which busy times of the connection changed. Read `appointments.busySite` for those days again. A hub sends it when its system reports a change; for a cloud connection Connect polls the system every five minutes and takes its webhook calls (`connections.getInbound`). */
   data: Record<string, unknown>;
 }
 
@@ -1138,7 +1220,7 @@ export interface PatientContext {
   patient: PatientRef;
   /** The hospital case the patient is in, when the system names one (HL7 ADT: PV1-19). A KIS files a document into a case: pass it on as `case_ref` of the document, or of the request of `diagnosis.write`, `diagnosis.write.text`, `document.attach` and `medication.order`. */
   case_ref?: CaseRef;
-  source: "gdt" | "deep_link" | "hl7_adt" | "smart_launch" | (string & {});
+  source: "gdt" | "deep_link" | "hl7_adt" | "smart_launch" | "fhir_subscription" | "vdds_media" | (string & {});
   received_at: string;
   accepted_at?: string | null;
   expires_at: string;
@@ -1241,6 +1323,65 @@ export interface AppointmentsListSiteQuery {
   /** Comma-separated patient ids of the system, at most 50. DURIA lists booked appointments per patient only; the other systems filter by them. */
   patient_ids?: string;
   /** `next_cursor` of the previous page. */
+  cursor?: string;
+  /** Page size. */
+  limit?: number;
+}
+
+export interface SiteBusyList {
+  /** Present and true when the simulated hub of a test site gave this answer. No real system was reached. */
+  simulated?: boolean;
+  /** The intervals of every source, by `start`, then `source_id`, then `connection_id`. One page holds each interval once. */
+  data: BusyInterval[];
+  next_cursor: Cursor;
+  /** `true` only when every source is `ok` and complete. A caller that knows a system's calendar is not in use (a practice that books only in MediSync) may decide per source from `sources`. */
+  complete: boolean;
+  /** One entry per connection of the site that was asked or skipped, in the order of the connections. */
+  sources: BusySource[];
+}
+
+/** A time a calendar is taken. No patient, no title, no reason. The cloud always sends `practitioner`, `null` where the system names no column. */
+export interface BusyInterval {
+  start: string;
+  /** The end, not included. */
+  end: string;
+  /** The calendar, column or resource the time is taken in, as the system names it: the DURIA column, HL7 AIG, AIL, AIP or AIS-3.1, the ISiK HealthcareService or Practitioner reference. `null` when the system names none (MEDICAL OFFICE syncs one Terminzone per connection). The key of `calendar_map`. */
+  practitioner?: string | null;
+  /** The id of the busy time on this connection, stable while it exists. Where the system has an appointment id, it is the `id` that `appointment.list` gives the same appointment. Keep copies by `connection_id` and `source_id`. */
+  source_id: string;
+  /** The site member this time blocks, from the connection's `calendar_map`. `null`: it blocks the whole practice (no entry for its `practitioner` and no `*` entry, or the entry `practice`). Set by the cloud. */
+  member_id?: string | null;
+  /** The connection the interval came from. Set in `appointments.busySite`. */
+  connection_id?: string;
+  /** The system of that connection. Set in `appointments.busySite`. */
+  system_id?: string;
+}
+
+export interface BusySource {
+  connection_id: string;
+  system_id: string;
+  /** `ok`: the connection answered, `count` intervals are in `data` (before paging). `unsupported`: Connect cannot read busy times of this system (`reason`: the capability reason, or `needs_patient_id` for a system that lists appointments per patient only). A verb this key may not call at this site because it is not proven on the system yet (`verb_unverified` on one connection) is `unsupported` with `reason: not_tested` here: no source, not a failed one. So is a cloud connection whose sign-in never finished or was removed (`reason: not_signed_in`). One that signed in and broke later is `failed`. `failed`: the read failed, `reason` names the error code (`agent_offline`, `connection_failed`, ...). */
+  status: "ok" | "unsupported" | "failed" | (string & {});
+  /** `busy`: read with `appointment.busy`. `list`: read with `appointment.list` and reduced in the cloud (a hub before `appointment.busy`). */
+  via?: "busy" | "list" | (string & {});
+  /** `true` when the source answered and its answer is complete. Always `false` for `unsupported` and `failed`. */
+  complete: boolean;
+  /** Why the source is not `ok`, or why an `ok` source is not complete (the codes of `BusyIntervalList.reason`). */
+  reason?: string;
+  synced_at?: string | null;
+  count: number;
+}
+
+export interface AppointmentsBusySiteQuery {
+  /** First day, inclusive (YYYY-MM-DD, German time). */
+  from: string;
+  /** Last day, inclusive (YYYY-MM-DD, German time). At most 91 days after `from`, so one call covers 92 days. */
+  to: string;
+  /** The member the read runs for. Busy times carry no patient data, so it is optional. When given, it must be an active member of the site. */
+  member_id?: string;
+  /** Ask only this connection of the site. */
+  connection_id?: string;
+  /** `next_cursor` of the previous page. Every page is a new read of the systems, so the cursor names the last interval of the page (its `start`, `source_id` and `connection_id`), not a position: the next page starts after that interval. A busy time that goes or comes between two pages moves no other one across the border; one that comes before the cursor is on no page of this walk (read again after `busy.changed`). A cursor of a page before 20.11.2026 (a position) still works in this release. */
   cursor?: string;
   /** Page size. */
   limit?: number;
@@ -1755,6 +1896,8 @@ export interface AppointmentSlot {
   end: string;
   practitioner?: string | null;
   status: "free" | "busy" | (string & {});
+  /** The appointment types this slot takes, where the system types its slots (DURIA the Terminart id, ISiK the service type code). */
+  appointment_types?: string[];
 }
 
 export interface AppointmentsListSlotsQuery {
@@ -1762,6 +1905,10 @@ export interface AppointmentsListSlotsQuery {
   from?: string;
   /** Last day, inclusive (YYYY-MM-DD). */
   to?: string;
+  /** Only the slots of this calendar or column, the `practitioner` value of a slot. A system that names no column (MEDICAL OFFICE) has no slot with a `practitioner`. */
+  practitioner?: string;
+  /** Only the slots that take this appointment type, one value of `appointment_types` of a slot (DURIA: the id of the Terminart; ISiK: the code of the service type). A slot without `appointment_types` is kept: its system does not type its slots. */
+  appointment_type?: string;
   /** `next_cursor` of the previous page. */
   cursor?: string;
   /** Page size. */
@@ -1791,10 +1938,50 @@ export interface AppointmentsListQuery {
   limit?: number;
 }
 
+export interface BusyIntervalList {
+  /** Present and true when the simulated hub of a test site gave this answer. No real system was reached. */
+  simulated?: boolean;
+  /** By `start`, then `source_id`. */
+  data: BusyInterval[];
+  next_cursor: Cursor;
+  /** `true`: every busy time of the range is in the answer (over all pages). `false`: busy times may be missing, `reason` says why. Treat a time without an interval as unknown then, not as free. */
+  complete: boolean;
+  /** Only with `complete: false`. `not_synced`: the system has not synced its calendar with the hub lately (MEDICAL OFFICE: no Abgleich for 15 minutes, or since the hub started). `feed_only`: the hub knows only the appointments whose messages it received (HL7 KIS). `cut`: more busy times than one answer holds. `past_days`: the range starts before today and the system syncs from today on (hubs before 20.11.2026 only: a past day cannot be booked, so it no longer makes an answer incomplete). `recurring`: a recurring event the hub does not expand. `first_pages_only`: the system had more pages than the hub reads (ISiK). `via_list`: read with `appointment.list` (a hub before `appointment.busy`), which cannot say whether its copy is complete. `unreadable`: an appointment or busy time of the system has no readable times or id (CalDAV and iCal feeds, eTermin, Cal.com, ISiK), or Connect dropped a busy time of the answer it could not read (a `source_id` over 200 characters). New codes may appear. */
+  reason?: string;
+  /** When the system last synced its calendar with the hub, where the hub knows it (MEDICAL OFFICE's last Abgleich, the last SIU message of an HL7 KIS). */
+  synced_at?: string | null;
+}
+
+export interface AppointmentsBusyQuery {
+  /** First day, inclusive (YYYY-MM-DD, German time). */
+  from: string;
+  /** Last day, inclusive (YYYY-MM-DD, German time). At most 91 days after `from`, so one call covers 92 days. */
+  to: string;
+  /** Only the intervals of this calendar or column, the `practitioner` value of an interval. */
+  practitioner?: string;
+  /** The member the read runs for. Busy times carry no patient data, so it is optional. When given, it must be an active member of the site. */
+  member_id?: string;
+  /** `next_cursor` of the previous page. Every page is a new read of the systems, so the cursor names the last interval of the page (its `start`, `source_id` and `connection_id`), not a position: the next page starts after that interval. A busy time that goes or comes between two pages moves no other one across the border; one that comes before the cursor is on no page of this walk (read again after `busy.changed`). A cursor of a page before 20.11.2026 (a position) still works in this release. */
+  cursor?: string;
+  /** Page size. */
+  limit?: number;
+}
+
 export interface AppointmentBookPlanRequest {
   patient: PatientRef;
+  /** A slot of `appointments.listSlots`. A calendar connection (`google-calendar`, `microsoft-365`, `caldav-ics`) takes the time of the booking instead: `<start>/<end>`, two RFC 3339 times in UTC (`2026-11-23T08:00:00Z/2026-11-23T08:30:00Z`), at most one day. `caldav-ics` also takes its older form `cal-busy:<start>:<minutes>`. */
   slot_id: string;
   reason?: string;
+  /** The calling app and its id of the booking. A calendar connection needs `external_id`: it keys the neutral "Belegt" event by it, so a repeat or a moved booking writes the same event and `appointments.planCancel` with the same id as `appointment_id` deletes it. Without `source`, the document names the calling app only. */
+  source?: AppointmentBookPlanRequestSource;
+}
+
+/** The calling app and its id of the booking. A calendar connection needs `external_id`: it keys the neutral "Belegt" event by it, so a repeat or a moved booking writes the same event and `appointments.planCancel` with the same id as `appointment_id` deletes it. Without `source`, the document names the calling app only. */
+export interface AppointmentBookPlanRequestSource {
+  /** Calling app, for example `scribe`. */
+  app: string;
+  /** The caller's own id of the booking, at most 200 characters. */
+  external_id?: string;
 }
 
 export interface AppointmentCancelPlanRequest {
@@ -1948,7 +2135,7 @@ export interface ErrorObject {
   param?: string;
   verb?: Verb;
   connection_id?: string;
-  /** Capability reason, for example `system_cannot`, `protocol_cannot`, `not_tested`. With `forbidden`, `member_secret` means the member has not linked their own account of the system in MediSync Connect (DURIA); `admin_assertion_required` means a partner key sent no valid `admin_assertion`; `other_device` means no valid `device_proof`; `not_site_setup` means only the app that set up the site (or MediSync) may change this, and an installed app changes only the members it added; `test_key` means a test key may not change an app that has a live project; `app_not_verified` means MediSync has not verified the app for live sites, `no_app` that the project has no app; `role` means the member's role may not do this; `needs_kontext` means the system answers only for the patient open in it, and the message names the step for that system (T2med needs the patient opened in T2med and MediSync started there, MEDICAL OFFICE needs the patient open in MEDICAL OFFICE or MediSync started from its Krankenblatt, QUINCY needs the MediSync button of the BDT-Anschluss pressed in the patient's Karteikarte); a read for another patient than the open one, or after the export file is older than the connection allows, gets the same reason; the call may succeed later. `no_desk_session` means the system reads for the member only through their MediSync Connect desk (T2med) and the member has no desk session at the site; the call may succeed after the member signs in to the desk. */
+  /** Capability reason, for example `system_cannot`, `protocol_cannot`, `not_tested`. With `forbidden`, `member_secret` means the member has not linked their own account of the system in MediSync Connect (DURIA); `admin_assertion_required` means a partner key sent no valid `admin_assertion`; `other_device` means no valid `device_proof`; `not_site_setup` means only the app that set up the site (or MediSync) may change this, and an installed app changes only the members it added; `test_key` means a test key may not change an app that has a live project; `app_not_verified` means MediSync has not verified the app for live sites, `no_app` that the project has no app; `role` means the member's role may not do this; `needs_kontext` means the system answers only for the patient open in it, and the message names the step for that system (T2med needs the patient opened in T2med and MediSync started there, MEDICAL OFFICE needs the patient open in MEDICAL OFFICE or MediSync started from its Krankenblatt, QUINCY needs the MediSync button of the BDT-Anschluss pressed in the patient's Karteikarte); a read for another patient than the open one, or after the export file is older than the connection allows, gets the same reason; the call may succeed later. `no_desk_session` means the system reads for the member only through their MediSync Connect desk (T2med) and the member has no desk session at the site; the call may succeed after the member signs in to the desk. `untested_system` (`connections.create`) means the system has not run against the real product yet, so only MediSync's test sites and the pilot sites of that system may connect it. */
   reason?: string;
   alternative?: Verb;
   /** True when the same request may succeed later. */

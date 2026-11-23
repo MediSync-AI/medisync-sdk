@@ -81,6 +81,9 @@ public final class Verb {
   /** <code>appointment.list</code> */
   public static final String APPOINTMENT_LIST = "appointment.list";
 
+  /** <code>appointment.busy</code> */
+  public static final String APPOINTMENT_BUSY = "appointment.busy";
+
   /** <code>appointment.book</code> */
   public static final String APPOINTMENT_BOOK = "appointment.book";
 

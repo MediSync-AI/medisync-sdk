@@ -17,33 +17,33 @@ public final class StreamTranscriptSegment extends JsonModel {
   public StreamTranscriptSegment() {}
 
   /** The <code>start</code> field. */
-  public @Nullable Double getStart() {
+  public Double getStart() {
     return start;
   }
 
   /** Sets <code>start</code>. */
-  public void setStart(@Nullable Double value) {
+  public void setStart(Double value) {
     this.start = value;
   }
 
   /** Sets <code>start</code> and returns this object. */
-  public StreamTranscriptSegment start(@Nullable Double value) {
+  public StreamTranscriptSegment start(Double value) {
     setStart(value);
     return this;
   }
 
   /** The <code>end</code> field. */
-  public @Nullable Double getEnd() {
+  public Double getEnd() {
     return end;
   }
 
   /** Sets <code>end</code>. */
-  public void setEnd(@Nullable Double value) {
+  public void setEnd(Double value) {
     this.end = value;
   }
 
   /** Sets <code>end</code> and returns this object. */
-  public StreamTranscriptSegment end(@Nullable Double value) {
+  public StreamTranscriptSegment end(Double value) {
     setEnd(value);
     return this;
   }

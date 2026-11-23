@@ -16,6 +16,9 @@ public final class AppointmentBookPlanRequest extends JsonModel {
   @JsonProperty("reason")
   private @Nullable String reason;
 
+  @JsonProperty("source")
+  private @Nullable AppointmentBookPlanRequestSource source;
+
   /** An empty object. */
   public AppointmentBookPlanRequest() {}
 
@@ -35,7 +38,7 @@ public final class AppointmentBookPlanRequest extends JsonModel {
     return this;
   }
 
-  /** The <code>slot_id</code> field. */
+  /** A slot of <code>appointments.listSlots</code>. A calendar connection (<code>google-calendar</code>, <code>microsoft-365</code>, <code>caldav-ics</code>) takes the time of the booking instead: <code>&lt;start&gt;/&lt;end&gt;</code>, two RFC 3339 times in UTC (<code>2026-11-23T08:00:00Z/2026-11-23T08:30:00Z</code>), at most one day. <code>caldav-ics</code> also takes its older form <code>cal-busy:&lt;start&gt;:&lt;minutes&gt;</code>. */
   public String getSlotId() {
     return slotId;
   }
@@ -64,6 +67,22 @@ public final class AppointmentBookPlanRequest extends JsonModel {
   /** Sets <code>reason</code> and returns this object. */
   public AppointmentBookPlanRequest reason(@Nullable String value) {
     setReason(value);
+    return this;
+  }
+
+  /** The calling app and its id of the booking. A calendar connection needs <code>external_id</code>: it keys the neutral "Belegt" event by it, so a repeat or a moved booking writes the same event and <code>appointments.planCancel</code> with the same id as <code>appointment_id</code> deletes it. Without <code>source</code>, the document names the calling app only. */
+  public @Nullable AppointmentBookPlanRequestSource getSource() {
+    return source;
+  }
+
+  /** Sets <code>source</code>. */
+  public void setSource(@Nullable AppointmentBookPlanRequestSource value) {
+    this.source = value;
+  }
+
+  /** Sets <code>source</code> and returns this object. */
+  public AppointmentBookPlanRequest source(@Nullable AppointmentBookPlanRequestSource value) {
+    setSource(value);
     return this;
   }
 }
