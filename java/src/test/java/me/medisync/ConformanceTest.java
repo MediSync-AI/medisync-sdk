@@ -255,6 +255,7 @@ class ConformanceTest {
     Throwable error = null;
     Thread reader = null;
     Throwable[] readError = new Throwable[1];
+    long finishMs = -1;
     try {
       LiveStream stream = null;
       for (JsonNode step : c.get("steps")) {
@@ -281,8 +282,14 @@ class ConformanceTest {
           byte[] frame = new byte[(int) Math.round(frameSeconds * 32000)];
           long n = Math.round(step.get("sendAudio").get("seconds").asDouble() / frameSeconds);
           for (long i = 0; i < n; i++) stream.send(frame);
+        } else if (step.has("endUtterance")) {
+          stream.endUtterance();
         } else if (step.has("finish")) {
-          stream.finish();
+          long started = System.nanoTime();
+          JsonNode f = step.get("finish");
+          if (f.has("flushTimeoutMs")) stream.finish(Duration.ofMillis(f.get("flushTimeoutMs").asLong()));
+          else stream.finish();
+          finishMs = (System.nanoTime() - started) / 1_000_000;
         } else if (step.has("close")) {
           stream.close();
         }
@@ -330,6 +337,12 @@ class ConformanceTest {
       assertEquals(expected, types, "event types");
     }
     for (JsonNode t : exp.path("eventTypesInclude")) assertTrue(types.contains(t.asText()), "event " + t + " missing in " + types);
+    if (exp.has("finishMs")) {
+      assertTrue(finishMs >= 0, "finish did not return");
+      JsonNode fm = exp.get("finishMs");
+      if (fm.has("min")) assertTrue(finishMs >= fm.get("min").asLong(), "finish took " + finishMs + " ms");
+      if (fm.has("max")) assertTrue(finishMs <= fm.get("max").asLong(), "finish took " + finishMs + " ms");
+    }
     if (exp.has("lastSegmentEnd")) {
       double max = Double.NEGATIVE_INFINITY;
       synchronized (events) {
