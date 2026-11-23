@@ -8,6 +8,7 @@ import java.net.http.WebSocket;
 import java.net.http.WebSocketHandshakeException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,8 +58,17 @@ public final class LiveStream implements Iterable<StreamEvent>, AutoCloseable {
   /** Close codes after which a new stream can continue: abnormal drop, going away, service failure, restart. */
   private static final Set<Integer> CONTINUE_CLOSE = new HashSet<>(Arrays.asList(1001, 1006, 1011, 1012));
 
-  /** After end_utterance, the stream ends when nothing has arrived for this long. */
+  /**
+   * How long {@link #finish()} waits for <code>flushed</code> before it uses the old rule. Servers
+   * before 23.11.2026 send no <code>flushed</code>.
+   */
+  public static final Duration FLUSH_TIMEOUT = Duration.ofSeconds(10);
+
+  /** The old rule: without <code>flushed</code>, the stream ends when nothing has arrived for this long. */
   private static final long SILENCE_MS = 3_000;
+
+  /** With speaker roles on, how long finish() waits for the final <code>speaker_roles</code> after the tail. */
+  private static final long ROLES_WAIT_MS = 3_000;
 
   private static final Object END = new Object();
 
@@ -74,10 +84,28 @@ public final class LiveStream implements Iterable<StreamEvent>, AutoCloseable {
     }
   }
 
+  /** What finish() waits for: FLUSH for flushed, FALLBACK for the old rule, ROLES for the final roles. */
+  private enum Phase {
+    FLUSH,
+    FALLBACK,
+    ROLES
+  }
+
   private static final class Finishing {
     final CompletableFuture<Void> future = new CompletableFuture<>();
+    final long flushTimeoutMs;
+    /** Which end_utterance of the current socket is the stop: its ack and flushed have the same index. */
+    @Nullable Integer target;
     @Nullable Double ack;
+    Phase phase = Phase.FLUSH;
+    long since;
+    long lastMessageAt;
+    boolean rolesFinal;
     int timer;
+
+    Finishing(long flushTimeoutMs) {
+      this.flushTimeoutMs = flushTimeoutMs;
+    }
   }
 
   private final ClientCore core;
@@ -101,6 +129,12 @@ public final class LiveStream implements Iterable<StreamEvent>, AutoCloseable {
   private @Nullable LiveStreamException failure;
   private boolean closing;
   private @Nullable Finishing finishing;
+  /** end_utterance, ack and flushed counted on the current socket, to pair them by order. */
+  private int utterances;
+  private int acks;
+  private int flushes;
+  /** The current session sends speaker roles (<code>effective.speaker_roles</code>). */
+  private boolean roles;
   private int attempts;
   private @Nullable String continueReason;
   private @Nullable CompletableFuture<Void> opened;
@@ -174,16 +208,27 @@ public final class LiveStream implements Iterable<StreamEvent>, AutoCloseable {
     sendJson(message);
   }
 
-  /** Flushes the audio the server holds. The server answers with <code>ack</code>. */
+  /**
+   * Flushes the audio the server holds. The server answers with <code>ack</code>, then <code>flushed
+   * </code> after the last transcript.
+   */
   public synchronized void endUtterance() {
-    sendJson(Json.MAPPER.createObjectNode().put("type", "end_utterance"));
+    if (sendJson(Json.MAPPER.createObjectNode().put("type", "end_utterance"))) utterances++;
+  }
+
+  /** {@link #finishAsync(Duration)} with {@link #FLUSH_TIMEOUT}. */
+  public CompletableFuture<Void> finishAsync() {
+    return finishAsync(FLUSH_TIMEOUT);
   }
 
   /**
-   * Ends the stream and keeps its tail: sends <code>end_utterance</code>, waits for the transcripts
-   * up to the ack's <code>processed_until</code> (or 3 s without a message), then closes.
+   * Ends the stream and keeps its tail: sends <code>end_utterance</code> and waits for its <code>
+   * flushed</code> (the last transcripts come before it). With speaker roles on, it then waits up to
+   * 3 s for the final <code>speaker_roles</code>. Then it closes. A server that sends no <code>
+   * flushed</code> within <code>flushTimeout</code> (servers before 23.11.2026) gets the old rule: a
+   * transcript reaches the ack's <code>processed_until</code>, or 3 s pass without a message.
    */
-  public synchronized CompletableFuture<Void> finishAsync() {
+  public synchronized CompletableFuture<Void> finishAsync(Duration flushTimeout) {
     if (done) {
       CompletableFuture<Void> f = new CompletableFuture<>();
       if (failure != null) f.completeExceptionally(failure);
@@ -191,15 +236,20 @@ public final class LiveStream implements Iterable<StreamEvent>, AutoCloseable {
       return f;
     }
     if (finishing != null) return finishing.future;
-    Finishing f = new Finishing();
+    Finishing f = new Finishing(flushTimeout.toMillis());
     finishing = f;
-    if (live) endUtterance();
+    if (live) stopUtterance();
     return f.future;
   }
 
   /** {@link #finishAsync()}, waiting. */
   public void finish() {
     ClientCore.join(finishAsync());
+  }
+
+  /** {@link #finishAsync(Duration)}, waiting. */
+  public void finish(Duration flushTimeout) {
+    ClientCore.join(finishAsync(flushTimeout));
   }
 
   /** Ends the stream at once. Audio not yet transcribed is lost. */
@@ -263,6 +313,7 @@ public final class LiveStream implements Iterable<StreamEvent>, AutoCloseable {
   private static StreamEvent typed(JsonNode message) {
     String type = message.path("type").asText();
     Class<? extends StreamEvent> cls = StreamServerMessages.forType(type);
+    if (type.equals("flushed")) return new StreamFlushed(message.path("processed_until").asDouble(0));
     if (cls == null) return new UnknownStreamEvent(type, message);
     try {
       return Json.MAPPER.treeToValue(message, cls);
@@ -271,9 +322,11 @@ public final class LiveStream implements Iterable<StreamEvent>, AutoCloseable {
     }
   }
 
-  private void sendJson(ObjectNode message) {
+  private boolean sendJson(ObjectNode message) {
     WebSocket socket = ws;
-    if (live && socket != null) sendText(socket, message.toString());
+    if (!live || socket == null) return false;
+    sendText(socket, message.toString());
+    return true;
   }
 
   private void sendText(WebSocket socket, String text) {
@@ -354,6 +407,7 @@ public final class LiveStream implements Iterable<StreamEvent>, AutoCloseable {
                 if (done) return;
                 gen = ++generation;
                 live = false;
+                utterances = acks = flushes = 0;
                 continueReason = null;
                 ws = null;
                 offset = lastEnd;
@@ -483,6 +537,7 @@ public final class LiveStream implements Iterable<StreamEvent>, AutoCloseable {
       case "session_ready":
         {
           sessionId = message.path("session_id").asText(null);
+          roles = message.path("effective").path("speaker_roles").asBoolean(false);
           attempts = 0;
           List<String> t = terms;
           if (t != null) {
@@ -500,11 +555,7 @@ public final class LiveStream implements Iterable<StreamEvent>, AutoCloseable {
             }
           }
           live = true;
-          Finishing f = finishing;
-          if (f != null) {
-            f.ack = null;
-            endUtterance();
-          }
+          if (finishing != null) stopUtterance();
           CompletableFuture<Void> o = opened;
           if (o != null) {
             opened = null;
@@ -517,33 +568,10 @@ public final class LiveStream implements Iterable<StreamEvent>, AutoCloseable {
           double end = message.path("segment").path("end").asDouble(0);
           if (end > lastEnd) lastEnd = end;
           while (!frames.isEmpty() && frames.peekFirst().end <= lastEnd) frames.removeFirst();
-          Finishing f = finishing;
-          if (f != null) {
-            if (f.ack != null && end >= f.ack) {
-              push(typed(message));
-              completeFinish();
-              return;
-            }
-            armSilence();
-          }
-          break;
-        }
-      case "ack":
-        {
-          Finishing f = finishing;
-          if (f != null) {
-            double until = message.path("processed_until").asDouble(0);
-            f.ack = until;
-            if (lastEnd >= until) {
-              push(typed(message));
-              completeFinish();
-              return;
-            }
-            armSilence();
-          }
           break;
         }
       case "error":
+        // Not fatal (asr_failed: one segment has no transcript): an event, the stream goes on.
         if (message.path("fatal").asBoolean(false)) {
           String code = message.path("code").asText("error");
           if (reconnect && CONTINUE_CODES.contains(code)) {
@@ -560,22 +588,97 @@ public final class LiveStream implements Iterable<StreamEvent>, AutoCloseable {
         break;
     }
     push(typed(message));
+    track(type, message);
   }
 
-  private void armSilence() {
+  /** Sends the end_utterance of finish() and starts waiting for its flushed. */
+  private void stopUtterance() {
+    Finishing f = finishing;
+    if (f == null) return;
+    endUtterance();
+    long now = System.currentTimeMillis();
+    f.target = utterances;
+    f.ack = null;
+    f.phase = Phase.FLUSH;
+    f.since = now;
+    f.lastMessageAt = now;
+    f.rolesFinal = false;
+    schedule();
+  }
+
+  private void schedule() {
     Finishing f = finishing;
     if (f == null) return;
     int timer = ++f.timer;
-    CompletableFuture.delayedExecutor(SILENCE_MS, TimeUnit.MILLISECONDS)
+    long at = f.phase == Phase.FLUSH ? f.since + f.flushTimeoutMs : f.phase == Phase.ROLES ? f.since + ROLES_WAIT_MS : f.lastMessageAt + SILENCE_MS;
+    CompletableFuture.delayedExecutor(Math.max(0, at - System.currentTimeMillis()), TimeUnit.MILLISECONDS)
         .execute(
             () -> {
               synchronized (this) {
-                if (finishing == f && f.timer == timer) completeFinish();
+                if (finishing == f && f.timer == timer && !done) onTimer(f);
               }
             });
   }
 
+  private void onTimer(Finishing f) {
+    if (f.phase == Phase.FLUSH) {
+      // No flushed in time: an older server. Use the old rule from here on.
+      f.phase = Phase.FALLBACK;
+      if (f.ack != null && lastEnd >= f.ack) tailDone();
+      else schedule();
+    } else if (f.phase == Phase.FALLBACK) {
+      if (System.currentTimeMillis() - f.lastMessageAt >= SILENCE_MS) tailDone();
+      else schedule();
+    } else {
+      completeFinish();
+    }
+  }
+
+  /** Every transcript of the stop is in. With speaker roles on, wait a little for the final roles. */
+  private void tailDone() {
+    Finishing f = finishing;
+    if (f == null) return;
+    if (roles && !f.rolesFinal) {
+      f.phase = Phase.ROLES;
+      f.since = System.currentTimeMillis();
+      schedule();
+    } else {
+      completeFinish();
+    }
+  }
+
+  /** Counts acks and flushes, and moves finish() on. Runs after the message is queued. */
+  private void track(String type, JsonNode message) {
+    if (type.equals("ack")) acks++;
+    else if (type.equals("flushed")) flushes++;
+    Finishing f = finishing;
+    if (f == null || f.target == null || done) return;
+    f.lastMessageAt = System.currentTimeMillis();
+    int target = f.target;
+    switch (type) {
+      case "ack":
+        if (acks != target) return;
+        f.ack = message.path("processed_until").asDouble(0);
+        if (f.phase == Phase.FALLBACK && lastEnd >= f.ack) tailDone();
+        return;
+      case "flushed":
+        if (flushes == target && f.phase != Phase.ROLES) tailDone();
+        return;
+      case "transcript":
+        if (f.phase == Phase.FALLBACK && f.ack != null && message.path("segment").path("end").asDouble(0) >= f.ack) tailDone();
+        return;
+      case "speaker_roles":
+        if (!message.path("final").asBoolean(false)) return;
+        f.rolesFinal = true;
+        if (f.phase == Phase.ROLES) completeFinish();
+        return;
+      default:
+        if (f.phase == Phase.FALLBACK) schedule();
+    }
+  }
+
   private void completeFinish() {
+    if (done) return;
     sendJson(Json.MAPPER.createObjectNode().put("type", "close"));
     closing = true;
     closeSocket();

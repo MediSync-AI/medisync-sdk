@@ -176,6 +176,7 @@ describe('conformance live.json', () => {
       const events: StreamEvent[] = [];
       let error: Json;
       let reading: Promise<void> | null = null;
+      let finishMs: number | null = null;
       try {
         let stream: Json = null;
         for (const step of c.steps) {
@@ -190,8 +191,12 @@ describe('conformance live.json', () => {
             const frame = new Uint8Array(Math.round(step.sendAudio.frameSeconds * 32000));
             const n = Math.round(step.sendAudio.seconds / step.sendAudio.frameSeconds);
             for (let i = 0; i < n; i++) stream.send(frame);
+          } else if (step.endUtterance) {
+            stream.endUtterance();
           } else if (step.finish) {
-            await stream.finish();
+            const started = Date.now();
+            await stream.finish(step.finish.flushTimeoutMs !== undefined ? { flushTimeoutMs: step.finish.flushTimeoutMs } : undefined);
+            finishMs = Date.now() - started;
           } else if (step.close) {
             stream.close();
           }
@@ -221,6 +226,11 @@ describe('conformance live.json', () => {
       const types = events.map((e) => e.type);
       if (exp.eventTypes) assert.deepEqual(types, exp.eventTypes, 'event types');
       for (const t of exp.eventTypesInclude ?? []) assert.ok(types.includes(t as never), `event ${t} missing in ${types.join(', ')}`);
+      if (exp.finishMs) {
+        assert.ok(finishMs !== null, 'finish did not return');
+        if (exp.finishMs.min !== undefined) assert.ok(finishMs >= exp.finishMs.min, `finish took ${finishMs} ms, expected at least ${exp.finishMs.min}`);
+        if (exp.finishMs.max !== undefined) assert.ok(finishMs <= exp.finishMs.max, `finish took ${finishMs} ms, expected at most ${exp.finishMs.max}`);
+      }
       if (exp.lastSegmentEnd !== undefined) {
         const ends = events.filter((e) => e.type === 'transcript').map((e) => (e as Json).segment.end);
         assert.equal(Math.max(...ends), exp.lastSegmentEnd);

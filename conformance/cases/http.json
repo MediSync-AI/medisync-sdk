@@ -16,7 +16,7 @@
             "headers": {
               "authorization": "Bearer msk_test_conformance",
               "medisync-version": "2026-11-01",
-              "user-agent": "~^medisync-(typescript|python|java|dotnet)/0\\.1\\.0$",
+              "user-agent": "~^medisync-(typescript|python|java|dotnet)/\\d+\\.\\d+\\.\\d+\\S*$",
               "accept": "application/json"
             },
             "absentHeaders": [

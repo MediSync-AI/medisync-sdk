@@ -38,7 +38,7 @@ export { Capabilities } from './connect/capabilities.ts';
 export { FINAL_TRANSFER_STATUSES, isFinalTransferStatus, TransferWaitTimeoutError, type EventPage, type PollOptions, type TransferWaitOptions } from './connect/follow.ts';
 export { buildRelease, type ReleaseBy } from './connect/release.ts';
 export { FINAL_TRANSCRIPTION_STATUSES, TranscriptionWaitTimeoutError, type TranscriptionWaitOptions } from './helpers/transcriptions.ts';
-export { CONTINUE_CODES, LiveStream, LiveStreamError, type StreamEvent, type StreamOptions, type StreamReconnecting, type WebSocketLike } from './live/stream.ts';
+export { CONTINUE_CODES, FLUSH_TIMEOUT_MS, type FinishOptions, LiveStream, LiveStreamError, type StreamEvent, type StreamFlushed, type StreamOptions, type StreamReconnecting, type WebSocketLike } from './live/stream.ts';
 export { API_VERSION, HELPERS, OPERATIONS } from './generated/operations.ts';
 export type { OperationName } from './generated/operations.ts';
 export { VERSION } from './version.ts';

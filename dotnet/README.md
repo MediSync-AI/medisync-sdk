@@ -120,11 +120,13 @@ var reader = Task.Run(async () =>
 });
 
 await foreach (var frame in Microphone()) await stream.SendAsync(frame); // 16 kHz mono pcm_s16le
-await stream.FinishAsync(); // end_utterance, the last transcripts, then close
+await stream.FinishAsync(); // end_utterance, the last transcripts up to flushed, then close
 await reader;
 ```
 
 On a drop, or a fatal error a new stream can continue (`worker_lost`, `max_duration_reached` and others), the stream connects again. The new stream starts at the last `segment.end` and gets the audio after that point again. You see a `StreamReconnecting` event. This works for `pcm_s16le`.
+
+`FinishAsync()` sends `end_utterance` and waits for the `StreamFlushed` event that answers it. The server sends `flushed` after the last transcript of the audio it had, so the end of the recording is not cut off. A segment the server could not transcribe arrives as a `StreamError` with code `asr_failed` and `Fatal` false, and the stream goes on. With `speaker_roles` on, `FinishAsync()` then waits up to 3 s for the final `StreamSpeakerRoles` event. Servers before 23.11.2026 send no `flushed`. After the flush timeout (default `LiveStream.FlushTimeout`, 10 s, `FinishAsync(TimeSpan.FromSeconds(5))`) `FinishAsync()` ends when a transcript reaches the ack's `processed_until`, or after 3 s without a message. Each `EndUtteranceAsync()` call gets one `ack` and one `flushed`, in the order of the calls.
 
 ## MediSync Connect
 

@@ -65,7 +65,17 @@ interface WsScript {
   configError?: { code: string; message: string; param?: string };
   /** Seconds per transcript segment. Default 1. */
   segmentSeconds?: number;
+  /**
+   * The answers to the n-th `end_utterance` of a connection: `replies[n]`, or the last entry.
+   * Default `["ack", "tail", "flushed"]`. `tail` is the transcript of the audio not yet
+   * transcribed, `flushed` has the ack's `processed_until`, `rolesFinal` is a final
+   * `speaker_roles`. `{ "delayMs": n }` waits, `{ "send": {...} }` sends a message as it is,
+   * `{ "close": code }` closes the socket. A server before 23.11.2026 is `["ack", "tail"]`.
+   */
+  endUtterance?: { connection?: number; replies: Reply[][] };
 }
+
+type Reply = 'ack' | 'tail' | 'flushed' | 'rolesFinal' | { delayMs: number } | { send: Json } | { close: number };
 
 interface WsLog {
   connection: number;
@@ -195,7 +205,28 @@ async function handleApi(request: Request, url: URL): Promise<Response> {
 }
 
 // The live stream.
-type WsData = { log: WsLog; bytesPerSecond: number; offset: number; received: number; emittedUntil: number; seq: number; ready: boolean };
+type WsData = { log: WsLog; bytesPerSecond: number; offset: number; received: number; emittedUntil: number; seq: number; ready: boolean; utterances: number };
+
+const DEFAULT_REPLIES: Reply[] = ['ack', 'tail', 'flushed'];
+
+async function answerEndUtterance(ws: ServerWebSocket<WsData>, replies: Reply[]) {
+  const d = ws.data;
+  const until = d.offset + d.received / d.bytesPerSecond;
+  for (const r of replies) {
+    if (d.log.closed) return;
+    if (r === 'ack') ws.send(JSON.stringify({ type: 'ack', processed_until: round(until) }));
+    else if (r === 'flushed') ws.send(JSON.stringify({ type: 'flushed', processed_until: round(until) }));
+    else if (r === 'tail') {
+      if (until > d.emittedUntil + 1e-6) sendTranscript(ws, d.emittedUntil, until);
+    } else if (r === 'rolesFinal') ws.send(JSON.stringify({ ...liveExample('speakerRoles'), final: true }));
+    else if ('delayMs' in r) await Bun.sleep(r.delayMs);
+    else if ('send' in r) ws.send(JSON.stringify(r.send));
+    else if ('close' in r) {
+      ws.close(r.close, '');
+      return;
+    }
+  }
+}
 
 function liveExample(name: string): Json {
   return structuredClone(asyncapi.components.messages[name].examples[0].payload);
@@ -249,7 +280,7 @@ const server = Bun.serve<WsData>({
       const auth = request.headers.get('authorization');
       const token = url.searchParams.get('token');
       if (!auth && !token) return error(401, 'authentication_error', 'missing_api_key', 'No API key or stream token.');
-      if (srv.upgrade(request, { headers: { 'request-id': `req_mock_ws_${n}` }, data: { log, bytesPerSecond: 32000, offset: 0, received: 0, emittedUntil: 0, seq: 0, ready: false } })) return undefined;
+      if (srv.upgrade(request, { headers: { 'request-id': `req_mock_ws_${n}` }, data: { log, bytesPerSecond: 32000, offset: 0, received: 0, emittedUntil: 0, seq: 0, ready: false, utterances: 0 } })) return undefined;
       return new Response('upgrade failed', { status: 400 });
     }
     return handleApi(request, url);
@@ -290,14 +321,17 @@ const server = Bun.serve<WsData>({
           ready.session_id = `sess_mock_${n}`;
           ready.effective.timeline_offset_seconds = d.offset;
           ready.effective.language = msg.language ?? null;
+          ready.effective.diarization = msg.diarization?.enabled === true;
+          ready.effective.speaker_roles = msg.speaker_roles === true && msg.diarization?.enabled === true;
           d.ready = true;
           ws.send(JSON.stringify(ready));
           return;
         }
         if (msg.type === 'end_utterance') {
-          const until = d.offset + d.received / d.bytesPerSecond;
-          ws.send(JSON.stringify({ type: 'ack', processed_until: round(until) }));
-          if (until > d.emittedUntil + 1e-6) sendTranscript(ws, d.emittedUntil, until);
+          const script = connectionScript(wsScript.endUtterance, n);
+          const replies = script ? (script.replies[Math.min(d.utterances, script.replies.length - 1)] ?? DEFAULT_REPLIES) : DEFAULT_REPLIES;
+          d.utterances++;
+          void answerEndUtterance(ws, replies);
           return;
         }
         if (msg.type === 'close') {

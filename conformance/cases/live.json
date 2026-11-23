@@ -67,7 +67,7 @@
       }
     },
     {
-      "name": "audio, terms, end_utterance: transcripts up to the ack, then close",
+      "name": "audio, terms, end_utterance: the last transcripts, then flushed, then close",
       "steps": [
         {
           "open": {}
@@ -94,7 +94,8 @@
           "transcript",
           "transcript",
           "ack",
-          "transcript"
+          "transcript",
+          "flushed"
         ],
         "lastSegmentEnd": 2.5,
         "connections": [
@@ -111,7 +112,435 @@
               "Bisoprolol"
             ]
           }
+        ],
+        "finishMs": {
+          "max": 2000
+        }
+      }
+    },
+    {
+      "name": "flushed right after the ack (silent tail): finish ends at once",
+      "ws": {
+        "endUtterance": {
+          "replies": [
+            [
+              "ack",
+              "flushed"
+            ]
+          ]
+        }
+      },
+      "steps": [
+        {
+          "open": {}
+        },
+        {
+          "sendAudio": {
+            "seconds": 2.5,
+            "frameSeconds": 0.1
+          }
+        },
+        {
+          "finish": {}
+        }
+      ],
+      "expect": {
+        "eventTypes": [
+          "session_ready",
+          "transcript",
+          "transcript",
+          "ack",
+          "flushed"
+        ],
+        "lastSegmentEnd": 2.0,
+        "finishMs": {
+          "max": 1500
+        },
+        "connections": [
+          {
+            "messageTypes": [
+              "config",
+              "end_utterance",
+              "close"
+            ]
+          }
         ]
+      }
+    },
+    {
+      "name": "two end_utterance: finish waits for the second flushed, not the first",
+      "ws": {
+        "endUtterance": {
+          "replies": [
+            [
+              "ack",
+              "tail",
+              {
+                "delayMs": 400
+              },
+              "flushed"
+            ],
+            [
+              {
+                "delayMs": 100
+              },
+              "ack",
+              "tail",
+              {
+                "delayMs": 800
+              },
+              "flushed"
+            ]
+          ]
+        }
+      },
+      "steps": [
+        {
+          "open": {}
+        },
+        {
+          "sendAudio": {
+            "seconds": 1.5,
+            "frameSeconds": 0.1
+          }
+        },
+        {
+          "endUtterance": {}
+        },
+        {
+          "sendAudio": {
+            "seconds": 1.0,
+            "frameSeconds": 0.1
+          }
+        },
+        {
+          "finish": {}
+        }
+      ],
+      "expect": {
+        "eventTypes": [
+          "session_ready",
+          "transcript",
+          "ack",
+          "transcript",
+          "transcript",
+          "ack",
+          "flushed",
+          "flushed"
+        ],
+        "lastSegmentEnd": 2.5,
+        "finishMs": {
+          "min": 700,
+          "max": 3000
+        },
+        "connections": [
+          {
+            "messageTypes": [
+              "config",
+              "end_utterance",
+              "end_utterance",
+              "close"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "no flushed (server before 23.11.2026): after the timeout, a transcript at the ack ends the stream",
+      "ws": {
+        "endUtterance": {
+          "replies": [
+            [
+              "ack",
+              "tail"
+            ]
+          ]
+        }
+      },
+      "steps": [
+        {
+          "open": {}
+        },
+        {
+          "sendAudio": {
+            "seconds": 2.5,
+            "frameSeconds": 0.1
+          }
+        },
+        {
+          "finish": {
+            "flushTimeoutMs": 500
+          }
+        }
+      ],
+      "expect": {
+        "eventTypes": [
+          "session_ready",
+          "transcript",
+          "transcript",
+          "ack",
+          "transcript"
+        ],
+        "lastSegmentEnd": 2.5,
+        "finishMs": {
+          "min": 450,
+          "max": 2500
+        },
+        "connections": [
+          {
+            "messageTypes": [
+              "config",
+              "end_utterance",
+              "close"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "no flushed and a silent tail: after the timeout, 3 s without a message end the stream",
+      "ws": {
+        "endUtterance": {
+          "replies": [
+            [
+              "ack"
+            ]
+          ]
+        }
+      },
+      "steps": [
+        {
+          "open": {}
+        },
+        {
+          "sendAudio": {
+            "seconds": 2.5,
+            "frameSeconds": 0.1
+          }
+        },
+        {
+          "finish": {
+            "flushTimeoutMs": 500
+          }
+        }
+      ],
+      "expect": {
+        "eventTypes": [
+          "session_ready",
+          "transcript",
+          "transcript",
+          "ack"
+        ],
+        "lastSegmentEnd": 2.0,
+        "finishMs": {
+          "min": 2900,
+          "max": 6000
+        },
+        "connections": [
+          {
+            "messageTypes": [
+              "config",
+              "end_utterance",
+              "close"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "the server closes before flushed: finish ends without an error",
+      "ws": {
+        "endUtterance": {
+          "replies": [
+            [
+              "ack",
+              "tail",
+              {
+                "close": 1000
+              }
+            ]
+          ]
+        }
+      },
+      "steps": [
+        {
+          "open": {}
+        },
+        {
+          "sendAudio": {
+            "seconds": 2.5,
+            "frameSeconds": 0.1
+          }
+        },
+        {
+          "finish": {}
+        }
+      ],
+      "expect": {
+        "eventTypes": [
+          "session_ready",
+          "transcript",
+          "transcript",
+          "ack",
+          "transcript"
+        ],
+        "lastSegmentEnd": 2.5,
+        "finishMs": {
+          "max": 2000
+        },
+        "connectionCount": 1
+      }
+    },
+    {
+      "name": "speaker roles: the final speaker_roles after flushed is delivered before the close",
+      "ws": {
+        "endUtterance": {
+          "replies": [
+            [
+              "ack",
+              "tail",
+              "flushed",
+              {
+                "delayMs": 300
+              },
+              "rolesFinal"
+            ]
+          ]
+        }
+      },
+      "steps": [
+        {
+          "open": {
+            "config": {
+              "diarization": {
+                "enabled": true
+              },
+              "speaker_roles": true
+            }
+          }
+        },
+        {
+          "sendAudio": {
+            "seconds": 2.5,
+            "frameSeconds": 0.1
+          }
+        },
+        {
+          "finish": {}
+        }
+      ],
+      "expect": {
+        "eventTypes": [
+          "session_ready",
+          "transcript",
+          "transcript",
+          "ack",
+          "transcript",
+          "flushed",
+          "speaker_roles"
+        ],
+        "finishMs": {
+          "min": 250,
+          "max": 2500
+        },
+        "connections": [
+          {
+            "messageTypes": [
+              "config",
+              "end_utterance",
+              "close"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "speaker roles on but no final speaker_roles: finish ends 3 s after flushed",
+      "steps": [
+        {
+          "open": {
+            "config": {
+              "diarization": {
+                "enabled": true
+              },
+              "speaker_roles": true
+            }
+          }
+        },
+        {
+          "sendAudio": {
+            "seconds": 2.5,
+            "frameSeconds": 0.1
+          }
+        },
+        {
+          "finish": {}
+        }
+      ],
+      "expect": {
+        "eventTypes": [
+          "session_ready",
+          "transcript",
+          "transcript",
+          "ack",
+          "transcript",
+          "flushed"
+        ],
+        "finishMs": {
+          "min": 2900,
+          "max": 6000
+        }
+      }
+    },
+    {
+      "name": "asr_failed is not fatal: an error event, then flushed, and the stream ends normally",
+      "ws": {
+        "endUtterance": {
+          "replies": [
+            [
+              "ack",
+              {
+                "send": {
+                  "type": "error",
+                  "code": "asr_failed",
+                  "message": "Mock asr_failed.",
+                  "param": null,
+                  "request_id": null,
+                  "fatal": false
+                }
+              },
+              "flushed"
+            ]
+          ]
+        }
+      },
+      "steps": [
+        {
+          "open": {}
+        },
+        {
+          "sendAudio": {
+            "seconds": 2.5,
+            "frameSeconds": 0.1
+          }
+        },
+        {
+          "finish": {}
+        }
+      ],
+      "expect": {
+        "eventTypes": [
+          "session_ready",
+          "transcript",
+          "transcript",
+          "ack",
+          "error",
+          "flushed"
+        ],
+        "lastSegmentEnd": 2.0,
+        "finishMs": {
+          "max": 2000
+        }
       }
     },
     {
