@@ -100,7 +100,7 @@ class StreamFlushed(BaseModel):
 class StreamReconnecting(BaseModel):
     """Sent by the SDK, not the server: the stream lost its socket and connects again."""
 
-    type: str = "reconnecting"
+    type: Literal["reconnecting"] = "reconnecting"
     attempt: int
     """1 for the first attempt after a drop."""
     offset_seconds: float
