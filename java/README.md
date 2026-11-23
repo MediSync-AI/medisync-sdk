@@ -16,14 +16,14 @@ Maven:
 <dependency>
   <groupId>me.medisync</groupId>
   <artifactId>medisync</artifactId>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
 </dependency>
 ```
 
 Gradle (Kotlin DSL):
 
 ```kotlin
-implementation("me.medisync:medisync:0.1.0")
+implementation("me.medisync:medisync:0.2.0")
 ```
 
 ## Start
@@ -135,12 +135,14 @@ try (LiveStream stream = client.audio().stream().open(StreamOptions.builder().co
   });
   reader.start();
   for (byte[] frame : microphone()) stream.send(frame); // 16 kHz mono pcm_s16le
-  stream.finish(); // end_utterance, the last transcripts, then close
+  stream.finish(); // end_utterance, the last transcripts up to flushed, then close
   reader.join();
 }
 ```
 
 On a drop, or a fatal error a new stream can continue (`worker_lost`, `max_duration_reached` and others), the stream connects again. The new stream starts at the last `segment.end` and gets the audio after that point again. You see a `StreamReconnecting` event. This works for `pcm_s16le`.
+
+`finish()` sends `end_utterance` and waits for the `StreamFlushed` event that answers it. The server sends `flushed` after the last transcript of the audio it had, so the end of the recording is not cut off. A segment the server could not transcribe arrives as a `StreamError` with code `asr_failed` and `fatal` false, and the stream goes on. With `speaker_roles` on, `finish()` then waits up to 3 s for the final `StreamSpeakerRoles` event. Servers before 23.11.2026 send no `flushed`. After the flush timeout (default `LiveStream.FLUSH_TIMEOUT`, 10 s, `finish(Duration.ofSeconds(5))`) `finish()` ends when a transcript reaches the ack's `processed_until`, or after 3 s without a message. Each `endUtterance()` call gets one `ack` and one `flushed`, in the order of the calls.
 
 ## MediSync Connect
 

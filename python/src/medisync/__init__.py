@@ -43,7 +43,7 @@ from ._files import FileTypes
 from ._generated.operations import API_VERSION, HELPERS, OPERATIONS
 from ._helpers.follow import TransferWaitTimeoutError
 from ._helpers.transcriptions import TranscriptionWaitTimeoutError
-from ._live import AsyncLiveStream, LiveStream, LiveStreamError, StreamReconnecting
+from ._live import FLUSH_TIMEOUT, AsyncLiveStream, LiveStream, LiveStreamError, StreamFlushed, StreamReconnecting
 from ._pagination import AsyncCursorPage, AsyncPaginator, SyncCursorPage
 from ._types import NOT_GIVEN, NotGiven
 from ._version import __version__
@@ -65,7 +65,9 @@ __all__ = [
     "LiveStream",
     "AsyncLiveStream",
     "LiveStreamError",
+    "StreamFlushed",
     "StreamReconnecting",
+    "FLUSH_TIMEOUT",
     "AppCredentials",
     "AppTokenSource",
     "AsyncAppTokenSource",

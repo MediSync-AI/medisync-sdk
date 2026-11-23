@@ -13,7 +13,10 @@ import json
 import queue
 import random
 import threading
+import time
 from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, Iterator, List, Mapping, Optional, Tuple, Union, cast
+
+from typing_extensions import Literal
 
 from ._exceptions import MediSyncError
 from ._generated.live_types import (
@@ -31,24 +34,28 @@ from ._models import BaseModel, construct
 if TYPE_CHECKING:
     from ._core import AsyncCore, SyncCore
 
-__all__ = ["LiveStream", "AsyncLiveStream", "LiveStreamError", "StreamReconnecting", "StreamEvent", "CONTINUE_CODES"]
+__all__ = [
+    "LiveStream",
+    "AsyncLiveStream",
+    "LiveStreamError",
+    "StreamFlushed",
+    "StreamReconnecting",
+    "StreamEvent",
+    "CONTINUE_CODES",
+    "FLUSH_TIMEOUT",
+]
 
 CONTINUE_CODES = frozenset({"overloaded", "unavailable", "service_unavailable", "worker_lost", "max_duration_reached", "session_conflict"})
 """Fatal codes after which a new stream can continue the conversation."""
 _CONTINUE_CLOSE = frozenset({1001, 1006, 1011, 1012})
+FLUSH_TIMEOUT = 10.0
+"""Seconds `finish()` waits for `flushed` before it uses the old rule. Servers before 23.11.2026 send no `flushed`."""
 _SILENCE = 3.0
-"""After `end_utterance`, the stream ends when nothing has arrived for this many seconds."""
-
-_MESSAGES: Dict[str, Any] = {
-    "session_ready": StreamSessionReady,
-    "transcript": StreamTranscript,
-    "ack": StreamAck,
-    "language": StreamLanguage,
-    "speaker_roles": StreamSpeakerRoles,
-    "backpressure": StreamBackpressure,
-    "status": StreamStatus,
-    "error": StreamError,
-}
+"""The old rule: without `flushed`, the stream ends when nothing has arrived for this many seconds."""
+_ROLES_WAIT = 3.0
+"""With speaker roles on, seconds `finish()` waits for the final `speaker_roles` after the tail."""
+_POLL = 0.5
+"""The longest read without a check, so that a `finish()` started meanwhile gets its deadlines."""
 
 
 class LiveStreamError(MediSyncError):
@@ -75,6 +82,20 @@ class LiveStreamError(MediSyncError):
         """The HTTP status of a refused handshake."""
 
 
+class StreamFlushed(BaseModel):
+    """The answer to one `end_utterance`, after every transcript of the audio it flushed.
+
+    A segment that failed sent an `error` with code `asr_failed` (not fatal) in place of its
+    transcript. With speaker roles on, a final `speaker_roles` message can still follow. Several
+    `end_utterance` messages get one `flushed` each, in the same order. Servers before 23.11.2026
+    do not send it.
+    """
+
+    type: Literal["flushed"] = "flushed"
+    processed_until: float
+    """The same value as the `ack` of the same `end_utterance`: seconds of audio the server had read."""
+
+
 class StreamReconnecting(BaseModel):
     """Sent by the SDK, not the server: the stream lost its socket and connects again."""
 
@@ -96,8 +117,21 @@ StreamEvent = Union[
     StreamBackpressure,
     StreamStatus,
     StreamError,
+    StreamFlushed,
     StreamReconnecting,
 ]
+
+_MESSAGES: Dict[str, Any] = {
+    "session_ready": StreamSessionReady,
+    "transcript": StreamTranscript,
+    "ack": StreamAck,
+    "language": StreamLanguage,
+    "speaker_roles": StreamSpeakerRoles,
+    "backpressure": StreamBackpressure,
+    "status": StreamStatus,
+    "error": StreamError,
+    "flushed": StreamFlushed,
+}
 
 
 def _parse(raw: Union[str, bytes]) -> Optional[Any]:
@@ -163,6 +197,81 @@ class _Timeline:
 
     def can_continue(self, code: int, reason: str, continue_reason: Optional[str]) -> bool:
         return self.reconnect and (continue_reason is not None or code in _CONTINUE_CLOSE or (code == 1008 and reason in CONTINUE_CODES))
+
+
+class _Finish:
+    """What `finish()` waits for. Acks and flushes pair with `end_utterance` messages by order.
+
+    `flush`: waiting for the `flushed` of the stop. `fallback`: no `flushed` in time, the old rule
+    (a transcript reaches the ack, or `_SILENCE` without a message). `roles`: the tail is in,
+    waiting for the final `speaker_roles`.
+    """
+
+    def __init__(self, flush_timeout: float) -> None:
+        self.flush_timeout = flush_timeout
+        self.target: Optional[int] = None
+        self.ack: Optional[float] = None
+        self.phase = "flush"
+        self.since = 0.0
+        self.last_message = 0.0
+        self.roles_final = False
+
+    def start(self, target: int) -> None:
+        """The stop's `end_utterance` went out as number `target` on the current socket."""
+        self.target, self.ack, self.phase, self.roles_final = target, None, "flush", False
+        self.since = self.last_message = time.monotonic()
+
+    def timeout(self) -> Optional[float]:
+        """Seconds until the next deadline, or None before the stop went out."""
+        if self.target is None:
+            return None
+        if self.phase == "flush":
+            at = self.since + self.flush_timeout
+        elif self.phase == "roles":
+            at = self.since + _ROLES_WAIT
+        else:
+            at = self.last_message + _SILENCE
+        return max(0.0, at - time.monotonic())
+
+    def _tail(self, roles: bool) -> bool:
+        if roles and not self.roles_final:
+            self.phase, self.since = "roles", time.monotonic()
+            return False
+        return True
+
+    def on_message(self, message: Any, acks: int, flushes: int, last_end: float, roles: bool) -> bool:
+        """True when the stream can close now."""
+        if self.target is None:
+            return False
+        self.last_message = time.monotonic()
+        if isinstance(message, StreamAck):
+            if acks == self.target:
+                self.ack = message.processed_until
+                if self.phase == "fallback" and last_end >= self.ack:
+                    return self._tail(roles)
+        elif isinstance(message, StreamFlushed):
+            if flushes == self.target and self.phase != "roles":
+                return self._tail(roles)
+        elif isinstance(message, StreamTranscript):
+            end = float(message.segment.end or 0.0) if message.segment else 0.0
+            if self.phase == "fallback" and self.ack is not None and end >= self.ack:
+                return self._tail(roles)
+        elif isinstance(message, StreamSpeakerRoles) and message.final:
+            self.roles_final = True
+            return self.phase == "roles"
+        return False
+
+    def on_timeout(self, last_end: float, roles: bool) -> bool:
+        """The deadline passed. True when the stream can close now."""
+        if self.phase == "flush":
+            # No flushed in time: an older server. Use the old rule from here on.
+            self.phase = "fallback"
+            if self.ack is not None and last_end >= self.ack:
+                return self._tail(roles)
+            return False
+        if self.phase == "fallback":
+            return self._tail(roles) if time.monotonic() - self.last_message >= _SILENCE else False
+        return True
 
 
 def _ws_target(client: Union[SyncCore, AsyncCore], token: Optional[str]) -> Tuple[str, Dict[str, str]]:
@@ -234,8 +343,11 @@ class AsyncLiveStream:
         self._failure: Optional[LiveStreamError] = None
         self._done = asyncio.Event()
         self._closing = False
-        self._finishing = False
-        self._ack: Optional[float] = None
+        self._finish: Optional[_Finish] = None
+        # end_utterance, ack and flushed counted on the current socket, to pair them by order.
+        self._utterances = self._acks = self._flushes = 0
+        self._roles = False
+        """The current session sends speaker roles (`effective.speaker_roles`)."""
         self._reader: Optional[asyncio.Task[None]] = None
         self.session_id: Optional[str] = None
         """The session of the current socket, from `session_ready`."""
@@ -273,6 +385,7 @@ class AsyncLiveStream:
             raise LiveStreamError("handshake_failed", f"The stream did not open: {e}") from e
         self._ws = ws
         self._live = False
+        self._utterances = self._acks = self._flushes = 0
         offset = self._timeline.last_end
         await ws.send(self._timeline.config_message(offset))
         while True:
@@ -287,6 +400,7 @@ class AsyncLiveStream:
             await self._queue.put(message)
             if isinstance(message, StreamSessionReady):
                 self.session_id = message.session_id
+                self._roles = bool(message.effective and message.effective.speaker_roles)
                 break
         if self._timeline.terms is not None:
             await ws.send(json.dumps({"type": "terms", "terms": self._timeline.terms}))
@@ -298,9 +412,10 @@ class AsyncLiveStream:
             if piece:
                 await ws.send(piece)
         self._live = True
-        if self._finishing:
-            self._ack = None
+        if self._finish is not None:
             await ws.send(json.dumps({"type": "end_utterance"}))
+            self._utterances += 1
+            self._finish.start(self._utterances)
         return None
 
     async def _run(self) -> None:
@@ -365,12 +480,15 @@ class AsyncLiveStream:
         """Reads the current socket. Answers None at the end, or a continue code after a fatal error a new stream can continue."""
         ws = self._ws
         while True:
-            silence = _SILENCE if self._finishing and self._ack is not None else None
+            finish = self._finish
+            wait = finish.timeout() if finish is not None else None
             try:
-                raw = await asyncio.wait_for(ws.recv(), silence) if silence else await ws.recv()
+                raw = await asyncio.wait_for(ws.recv(), _POLL if wait is None else wait)
             except asyncio.TimeoutError:
-                await self._complete()
-                return None
+                if wait is not None and finish is not None and finish.on_timeout(self._timeline.last_end, self._roles):
+                    await self._complete()
+                    return None
+                continue
             message = _parse(raw)
             if message is None:
                 continue
@@ -381,18 +499,22 @@ class AsyncLiveStream:
                 await self._queue.put(message)
                 await ws.close()
                 raise _fatal(message)
+            # A non-fatal error (`asr_failed`: one segment has no transcript) is an event; the stream goes on.
             await self._queue.put(message)
-            if isinstance(message, StreamTranscript):
-                end = float(message.segment.end or 0.0) if message.segment else 0.0
-                self._timeline.covered(end)
-                if self._finishing and self._ack is not None and end >= self._ack:
-                    await self._complete()
-                    return None
-            elif isinstance(message, StreamAck) and self._finishing:
-                self._ack = message.processed_until
-                if self._timeline.last_end >= message.processed_until:
-                    await self._complete()
-                    return None
+            if self._track(message):
+                await self._complete()
+                return None
+
+    def _track(self, message: Any) -> bool:
+        """Counts acks and flushes and moves `finish()` on. True when the stream can close now."""
+        if isinstance(message, StreamTranscript):
+            self._timeline.covered(float(message.segment.end or 0.0) if message.segment else 0.0)
+        elif isinstance(message, StreamAck):
+            self._acks += 1
+        elif isinstance(message, StreamFlushed):
+            self._flushes += 1
+        finish = self._finish
+        return finish is not None and finish.on_message(message, self._acks, self._flushes, self._timeline.last_end, self._roles)
 
     async def _complete(self) -> None:
         self._closing = True
@@ -422,14 +544,16 @@ class AsyncLiveStream:
             except Exception:  # noqa: BLE001 - kept in the timeline; a reconnect sends it again
                 pass
 
-    async def _control(self, message: Dict[str, Any]) -> None:
+    async def _control(self, message: Dict[str, Any]) -> bool:
         # A socket that just closed drops the message; the reconnect sends the config with the
         # terms, and `end_utterance` again when the stream is finishing.
         if self._live:
             try:
                 await self._ws.send(json.dumps(message))
+                return True
             except Exception:  # noqa: BLE001
                 pass
+        return False
 
     async def set_terms(self, terms: List[str]) -> None:
         """Replaces the wordbook of this stream. An empty list removes it."""
@@ -437,16 +561,28 @@ class AsyncLiveStream:
         await self._control({"type": "terms", "terms": list(terms)})
 
     async def end_utterance(self) -> None:
-        """Flushes the audio the server holds. The server answers with `ack`."""
-        await self._control({"type": "end_utterance"})
+        """Flushes the audio the server holds. The server answers with `ack`, then `flushed` after the last transcript."""
+        if await self._control({"type": "end_utterance"}):
+            self._utterances += 1
 
-    async def finish(self) -> None:
-        """Ends the stream and keeps its tail: `end_utterance`, the last transcripts, then close."""
-        if not self._done.is_set():
-            self._finishing = True
-            self._ack = None
-            await self.end_utterance()
-            await self._done.wait()
+    async def finish(self, *, flush_timeout: float = FLUSH_TIMEOUT) -> None:
+        """Ends the stream and keeps its tail.
+
+        Sends `end_utterance` and waits for its `flushed` (the last transcripts come before it).
+        With speaker roles on, it then waits up to 3 s for the final `speaker_roles`. Then it
+        closes. A server that sends no `flushed` within `flush_timeout` seconds (servers before
+        23.11.2026) gets the old rule: a transcript reaches the ack's `processed_until`, or 3 s
+        pass without a message.
+        """
+        if not self._done.is_set() and self._finish is None:
+            finish = self._finish = _Finish(flush_timeout)
+            # Armed before the send, so a fast ack cannot come first. Not live: the reconnect sends it.
+            finish.start(self._utterances + 1)
+            if await self._control({"type": "end_utterance"}):
+                self._utterances += 1
+            else:
+                finish.target = None
+        await self._done.wait()
         if self._failure:
             raise self._failure
 
@@ -506,8 +642,11 @@ class LiveStream:
         self._failure: Optional[LiveStreamError] = None
         self._done = threading.Event()
         self._closing = False
-        self._finishing = False
-        self._ack: Optional[float] = None
+        self._finish: Optional[_Finish] = None
+        # end_utterance, ack and flushed counted on the current socket, to pair them by order.
+        self._utterances = self._acks = self._flushes = 0
+        self._roles = False
+        """The current session sends speaker roles (`effective.speaker_roles`)."""
         self._thread: Optional[threading.Thread] = None
         self.session_id: Optional[str] = None
         """The session of the current socket, from `session_ready`."""
@@ -557,9 +696,11 @@ class LiveStream:
             self._queue.put(message)
             if isinstance(message, StreamSessionReady):
                 self.session_id = message.session_id
+                self._roles = bool(message.effective and message.effective.speaker_roles)
                 break
         with self._lock:
             self._ws = ws
+            self._utterances = self._acks = self._flushes = 0
             if self._timeline.terms is not None:
                 ws.send(json.dumps({"type": "terms", "terms": self._timeline.terms}))
             for i in range(len(self._timeline.frames)):
@@ -567,9 +708,10 @@ class LiveStream:
                 if piece:
                     ws.send(piece)
             self._live = True
-            if self._finishing:
-                self._ack = None
+            if self._finish is not None:
                 ws.send(json.dumps({"type": "end_utterance"}))
+                self._utterances += 1
+                self._finish.start(self._utterances)
         return None
 
     def _run(self) -> None:
@@ -635,12 +777,15 @@ class LiveStream:
     def _read(self) -> Optional[str]:
         ws = self._ws
         while True:
-            silence = _SILENCE if self._finishing and self._ack is not None else None
+            finish = self._finish
+            wait = finish.timeout() if finish is not None else None
             try:
-                raw = ws.recv(timeout=silence)
+                raw = ws.recv(timeout=_POLL if wait is None else wait)
             except TimeoutError:
-                self._complete()
-                return None
+                if wait is not None and finish is not None and finish.on_timeout(self._timeline.last_end, self._roles):
+                    self._complete()
+                    return None
+                continue
             message = _parse(raw)
             if message is None:
                 continue
@@ -650,19 +795,24 @@ class LiveStream:
                     return message.code
                 ws.close()
                 raise _fatal(message)
+            # A non-fatal error (`asr_failed`: one segment has no transcript) is an event; the stream goes on.
             self._queue.put(message)
-            if isinstance(message, StreamTranscript):
-                end = float(message.segment.end or 0.0) if message.segment else 0.0
-                with self._lock:
-                    self._timeline.covered(end)
-                if self._finishing and self._ack is not None and end >= self._ack:
-                    self._complete()
-                    return None
-            elif isinstance(message, StreamAck) and self._finishing:
-                self._ack = message.processed_until
-                if self._timeline.last_end >= message.processed_until:
-                    self._complete()
-                    return None
+            with self._lock:
+                done = self._track(message)
+            if done:
+                self._complete()
+                return None
+
+    def _track(self, message: Any) -> bool:
+        """Counts acks and flushes and moves `finish()` on. True when the stream can close now."""
+        if isinstance(message, StreamTranscript):
+            self._timeline.covered(float(message.segment.end or 0.0) if message.segment else 0.0)
+        elif isinstance(message, StreamAck):
+            self._acks += 1
+        elif isinstance(message, StreamFlushed):
+            self._flushes += 1
+        finish = self._finish
+        return finish is not None and finish.on_message(message, self._acks, self._flushes, self._timeline.last_end, self._roles)
 
     def _complete(self) -> None:
         self._closing = True
@@ -693,15 +843,17 @@ class LiveStream:
                 except Exception:  # noqa: BLE001 - kept in the timeline; a reconnect sends it again
                     pass
 
-    def _control(self, message: Dict[str, Any]) -> None:
+    def _control(self, message: Dict[str, Any]) -> bool:
         # A socket that just closed drops the message; the reconnect sends the config with the
         # terms, and `end_utterance` again when the stream is finishing.
         with self._lock:
             if self._live:
                 try:
                     self._ws.send(json.dumps(message))
+                    return True
                 except Exception:  # noqa: BLE001
                     pass
+        return False
 
     def set_terms(self, terms: List[str]) -> None:
         """Replaces the wordbook of this stream. An empty list removes it."""
@@ -710,15 +862,27 @@ class LiveStream:
         self._control({"type": "terms", "terms": list(terms)})
 
     def end_utterance(self) -> None:
-        """Flushes the audio the server holds. The server answers with `ack`."""
-        self._control({"type": "end_utterance"})
+        """Flushes the audio the server holds. The server answers with `ack`, then `flushed` after the last transcript."""
+        with self._lock:
+            if self._control({"type": "end_utterance"}):
+                self._utterances += 1
 
-    def finish(self, timeout: Optional[float] = None) -> None:
-        """Ends the stream and keeps its tail: `end_utterance`, the last transcripts, then close."""
+    def finish(self, timeout: Optional[float] = None, *, flush_timeout: float = FLUSH_TIMEOUT) -> None:
+        """Ends the stream and keeps its tail.
+
+        Sends `end_utterance` and waits for its `flushed` (the last transcripts come before it).
+        With speaker roles on, it then waits up to 3 s for the final `speaker_roles`. Then it
+        closes. A server that sends no `flushed` within `flush_timeout` seconds (servers before
+        23.11.2026) gets the old rule: a transcript reaches the ack's `processed_until`, or 3 s
+        pass without a message. `timeout` limits the whole wait.
+        """
         if not self._done.is_set():
-            self._finishing = True
-            self._ack = None
-            self.end_utterance()
+            with self._lock:
+                if self._finish is None:
+                    finish = self._finish = _Finish(flush_timeout)
+                    if self._control({"type": "end_utterance"}):
+                        self._utterances += 1
+                        finish.start(self._utterances)
             self._done.wait(timeout)
         if self._failure:
             raise self._failure

@@ -126,10 +126,12 @@ const stream = await client.audio.stream.open({ config: { language: 'de' } });
 })();
 
 for await (const frame of microphone()) stream.send(frame); // 16 kHz mono pcm_s16le
-await stream.finish(); // end_utterance, the last transcripts, then close
+await stream.finish(); // end_utterance, the last transcripts up to flushed, then close
 ```
 
 On a drop, or a fatal error a new stream can continue (`worker_lost`, `max_duration_reached` and others), the stream connects again. The new stream starts at the last `segment.end` and gets the audio after that point again. You see a `reconnecting` event. This works for `pcm_s16le`.
+
+`finish()` sends `end_utterance` and waits for the `flushed` event that answers it. The server sends `flushed` after the last transcript of the audio it had, so the end of the recording is not cut off. A segment the server could not transcribe arrives as an `error` event with code `asr_failed` and `fatal: false`, and the stream goes on. With `speaker_roles` on, `finish()` then waits up to 3 s for the final `speaker_roles` event. Servers before 23.11.2026 send no `flushed`. After `flushTimeoutMs` (default 10 000, `finish({ flushTimeoutMs: 5000 })`) `finish()` ends when a transcript reaches the ack's `processed_until`, or after 3 s without a message. Each `endUtterance()` call gets one `ack` and one `flushed`, in the order of the calls.
 
 A browser cannot send the API key on a WebSocket. Make a stream token on your server with `client.audio.stream.tokens.create()` and pass it as `token`. On Node 20, pass `WebSocket` from the `ws` package.
 

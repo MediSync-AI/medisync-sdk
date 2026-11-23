@@ -290,6 +290,7 @@ public class ConformanceTests
         Exception? error = null;
         Task? reader = null;
         Exception? readError = null;
+        long? finishMs = null;
         try
         {
             LiveStream? stream = null;
@@ -325,9 +326,16 @@ public class ConformanceTests
                     var n = Math.Round(audio["seconds"]!.GetValue<double>() / frameSeconds);
                     for (var i = 0; i < n; i++) await stream!.SendAsync(frame);
                 }
-                else if (step["finish"] is not null)
+                else if (step["endUtterance"] is not null)
                 {
-                    await stream!.FinishAsync();
+                    await stream!.EndUtteranceAsync();
+                }
+                else if (step["finish"] is { } finish)
+                {
+                    var started = System.Diagnostics.Stopwatch.StartNew();
+                    if (finish["flushTimeoutMs"] is { } ft) await stream!.FinishAsync(TimeSpan.FromMilliseconds(ft.GetValue<double>()));
+                    else await stream!.FinishAsync();
+                    finishMs = started.ElapsedMilliseconds;
                 }
                 else if (step["close"] is not null)
                 {
@@ -365,6 +373,12 @@ public class ConformanceTests
         lock (events) types = events.Select(x => x.Type).ToList();
         if (exp["eventTypes"] is { } et) Assert.Equal(et.AsArray().Select(x => x!.GetValue<string>()), types);
         foreach (var t in exp["eventTypesInclude"]?.AsArray() ?? new JsonArray()) Assert.Contains(t!.GetValue<string>(), types);
+        if (exp["finishMs"] is { } fm)
+        {
+            Assert.True(finishMs is not null, "finish did not return");
+            if (fm["min"] is { } min) Assert.True(finishMs >= min.GetValue<double>(), $"finish took {finishMs} ms");
+            if (fm["max"] is { } max) Assert.True(finishMs <= max.GetValue<double>(), $"finish took {finishMs} ms");
+        }
         if (exp["lastSegmentEnd"] is { } lse)
         {
             double max;
