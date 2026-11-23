@@ -35,5 +35,5 @@ public sealed class MediSyncClient : MediSyncResources
 public static class SdkVersion
 {
     /// <summary>The SDK version, also in the User-Agent header.</summary>
-    public const string Value = "0.2.0";
+    public const string Value = "0.3.0";
 }
