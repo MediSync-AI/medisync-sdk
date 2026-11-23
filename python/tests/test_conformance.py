@@ -6,6 +6,7 @@ import asyncio
 import json
 import keyword
 import re
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
@@ -230,7 +231,9 @@ async def test_async(case: Dict[str, Any], mock: Mock) -> None:
     check_http(case, mock, result, error, sleeps)
 
 
-def check_live(case: Dict[str, Any], mock: Mock, events: List[Any], error: Optional[BaseException]) -> None:
+def check_live(
+    case: Dict[str, Any], mock: Mock, events: List[Any], error: Optional[BaseException], finish_ms: Optional[float] = None
+) -> None:
     exp = case["expect"]
     if "error" not in exp and error is not None:
         raise error
@@ -264,8 +267,18 @@ def check_live(case: Dict[str, Any], mock: Mock, events: List[Any], error: Optio
         assert types == exp["eventTypes"]
     for t in exp.get("eventTypesInclude", []):
         assert t in types, f"{t} missing in {types}"
+    if "finishMs" in exp:
+        assert finish_ms is not None, "finish did not return"
+        if "min" in exp["finishMs"]:
+            assert finish_ms >= exp["finishMs"]["min"], f"finish took {finish_ms:.0f} ms"
+        if "max" in exp["finishMs"]:
+            assert finish_ms <= exp["finishMs"]["max"], f"finish took {finish_ms:.0f} ms"
     if "lastSegmentEnd" in exp:
         assert max(ev.segment.end for ev in events if ev.type == "transcript") == exp["lastSegmentEnd"]
+
+
+def finish_args(step: Dict[str, Any]) -> Dict[str, Any]:
+    return {"flush_timeout": step["flushTimeoutMs"] / 1000} if "flushTimeoutMs" in step else {}
 
 
 def frames(step: Dict[str, Any]) -> List[bytes]:
@@ -280,6 +293,7 @@ async def test_live_async(case: Dict[str, Any], mock: Mock) -> None:
     events: List[Any] = []
     error: Optional[BaseException] = None
     reader: Optional[asyncio.Task[None]] = None
+    finish_ms: Optional[float] = None
     try:
         stream: Any = None
         for step in case["steps"]:
@@ -297,8 +311,12 @@ async def test_live_async(case: Dict[str, Any], mock: Mock) -> None:
             elif "sendAudio" in step:
                 for f in frames(step["sendAudio"]):
                     await stream.send(f)
+            elif "endUtterance" in step:
+                await stream.end_utterance()
             elif "finish" in step:
-                await asyncio.wait_for(stream.finish(), 20)
+                started = time.monotonic()
+                await asyncio.wait_for(stream.finish(**finish_args(step["finish"])), 20)
+                finish_ms = (time.monotonic() - started) * 1000
             elif "close" in step:
                 await stream.close()
         if reader is not None:
@@ -307,7 +325,7 @@ async def test_live_async(case: Dict[str, Any], mock: Mock) -> None:
         error = e
     finally:
         await client.close()
-    check_live(case, mock, events, error)
+    check_live(case, mock, events, error, finish_ms)
 
 
 @pytest.mark.parametrize("case", LIVE_CASES, ids=[c["name"] for c in LIVE_CASES])
@@ -319,6 +337,7 @@ def test_live_sync(case: Dict[str, Any], mock: Mock) -> None:
     events: List[Any] = []
     error: Optional[BaseException] = None
     reader: Optional[threading.Thread] = None
+    finish_ms: Optional[float] = None
     try:
         stream: Any = None
         for step in case["steps"]:
@@ -337,8 +356,12 @@ def test_live_sync(case: Dict[str, Any], mock: Mock) -> None:
             elif "sendAudio" in step:
                 for f in frames(step["sendAudio"]):
                     stream.send(f)
+            elif "endUtterance" in step:
+                stream.end_utterance()
             elif "finish" in step:
-                stream.finish(timeout=20)
+                started = time.monotonic()
+                stream.finish(timeout=20, **finish_args(step["finish"]))
+                finish_ms = (time.monotonic() - started) * 1000
             elif "close" in step:
                 stream.close()
         if reader is not None:
@@ -347,4 +370,4 @@ def test_live_sync(case: Dict[str, Any], mock: Mock) -> None:
         error = e
     finally:
         client.close()
-    check_live(case, mock, events, error)
+    check_live(case, mock, events, error, finish_ms)
