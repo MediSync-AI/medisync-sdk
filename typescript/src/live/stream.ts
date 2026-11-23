@@ -11,8 +11,12 @@ import type { StreamConfig, StreamServerMessage } from '../generated/types/live.
 export const CONTINUE_CODES: ReadonlySet<string> = new Set(['overloaded', 'unavailable', 'service_unavailable', 'worker_lost', 'max_duration_reached', 'session_conflict']);
 /** Close codes after which a new stream can continue: abnormal drop, going away, service failure, restart. */
 const CONTINUE_CLOSE = new Set([1001, 1006, 1011, 1012]);
-/** After `end_utterance`, the stream ends when nothing has arrived for this long. */
+/** How long `finish()` waits for `flushed` before it uses the old rule. Servers before 23.11.2026 send no `flushed`. */
+export const FLUSH_TIMEOUT_MS = 10_000;
+/** The old rule: without `flushed`, the stream ends when nothing has arrived for this long. */
 const SILENCE_MS = 3_000;
+/** With speaker roles on, how long `finish()` waits for the final `speaker_roles` after the tail. */
+const ROLES_WAIT_MS = 3_000;
 
 /** A fatal stream error, a refused handshake or a close the stream cannot continue after. */
 export class LiveStreamError extends MediSyncError {
@@ -43,7 +47,29 @@ export interface StreamReconnecting {
   reason: string;
 }
 
-export type StreamEvent = StreamServerMessage | StreamReconnecting;
+/**
+ * The answer to one `end_utterance`, after every transcript of the audio it flushed. A segment
+ * that failed sent an `error` with code `asr_failed` (not fatal) in place of its transcript.
+ * With speaker roles on, a final `speaker_roles` message can still follow. Several
+ * `end_utterance` messages get one `flushed` each, in the same order. Servers before 23.11.2026
+ * do not send it.
+ */
+export interface StreamFlushed {
+  type: 'flushed';
+  /** The same value as the `ack` of the same `end_utterance`: seconds of audio the server had read. */
+  processed_until: number;
+}
+
+export type StreamEvent = StreamServerMessage | StreamFlushed | StreamReconnecting;
+
+export interface FinishOptions {
+  /**
+   * Milliseconds to wait for `flushed` after `end_utterance`. Default 10 000. A server that sends
+   * no `flushed` (before 23.11.2026) gets the old rule after this time: the stream ends when a
+   * transcript reaches the ack's `processed_until`, or when nothing has arrived for 3 s.
+   */
+  flushTimeoutMs?: number;
+}
 
 /** A WebSocket constructor: the global one, or one from a package such as `ws` on Node 20. */
 export type WebSocketLike = new (url: string, init?: unknown) => WebSocket;
@@ -98,7 +124,27 @@ export class LiveStream implements AsyncIterable<StreamEvent> {
   #done = false;
   #failure: LiveStreamError | null = null;
   #closing = false;
-  #finishing: { ack: number | null; timer: ReturnType<typeof setTimeout> | null; resolve: () => void; reject: (e: unknown) => void } | null = null;
+  #finishing: {
+    /** Which `end_utterance` of the current socket is the stop: its ack and flushed have the same index. */
+    target: number | null;
+    ack: number | null;
+    /** `flush`: waiting for flushed. `fallback`: the old rule. `roles`: the tail is in, waiting for the final speaker roles. */
+    phase: 'flush' | 'fallback' | 'roles';
+    since: number;
+    lastMessageAt: number;
+    rolesFinal: boolean;
+    flushTimeoutMs: number;
+    timer: ReturnType<typeof setTimeout> | null;
+    resolve: () => void;
+    reject: (e: unknown) => void;
+  } | null = null;
+  #finishPromise: Promise<void> | null = null;
+  /** `end_utterance`, `ack` and `flushed` counted on the current socket, to pair them by order. */
+  #utterances = 0;
+  #acks = 0;
+  #flushes = 0;
+  /** The current session sends speaker roles (`effective.speaker_roles`). */
+  #roles = false;
   #attempts = 0;
   #continueReason: string | null = null;
   #opened: { resolve: () => void; reject: (e: unknown) => void } | null = null;
@@ -154,21 +200,27 @@ export class LiveStream implements AsyncIterable<StreamEvent> {
     this.#sendJson({ type: 'terms', terms: this.#terms });
   }
 
-  /** Flushes the audio the server holds. The server answers with `ack`. */
+  /** Flushes the audio the server holds. The server answers with `ack`, then `flushed` after the last transcript. */
   endUtterance(): void {
-    this.#sendJson({ type: 'end_utterance' });
+    if (this.#sendJson({ type: 'end_utterance' })) this.#utterances++;
   }
 
   /**
-   * Ends the stream and keeps its tail: sends `end_utterance`, waits for the transcripts up to the
-   * ack's `processed_until` (or 3 s without a message), then closes. Iteration ends after that.
+   * Ends the stream and keeps its tail: sends `end_utterance` and waits for its `flushed` (the
+   * last transcripts come before it). With speaker roles on, it then waits up to 3 s for the
+   * final `speaker_roles`. Then it closes, and iteration ends after the last event. A server
+   * that sends no `flushed` within `flushTimeoutMs` (default 10 s) gets the old rule: a
+   * transcript reaches the ack's `processed_until`, or 3 s pass without a message.
    */
-  finish(): Promise<void> {
+  finish(options: FinishOptions = {}): Promise<void> {
     if (this.#done) return this.#failure ? Promise.reject(this.#failure) : Promise.resolve();
-    return new Promise<void>((resolve, reject) => {
-      this.#finishing = { ack: null, timer: null, resolve, reject };
-      if (this.#live) this.endUtterance();
+    if (this.#finishPromise) return this.#finishPromise;
+    this.#finishPromise = new Promise<void>((resolve, reject) => {
+      const now = Date.now();
+      this.#finishing = { target: null, ack: null, phase: 'flush', since: now, lastMessageAt: now, rolesFinal: false, flushTimeoutMs: options.flushTimeoutMs ?? FLUSH_TIMEOUT_MS, timer: null, resolve, reject };
+      if (this.#live) this.#stopUtterance();
     });
+    return this.#finishPromise;
   }
 
   /** Ends the stream at once. Audio not yet transcribed is lost. */
@@ -203,8 +255,86 @@ export class LiveStream implements AsyncIterable<StreamEvent> {
     this.#wake = null;
   }
 
-  #sendJson(message: object): void {
-    if (this.#live && this.#ws?.readyState === 1) this.#ws.send(JSON.stringify(message));
+  #sendJson(message: object): boolean {
+    if (!this.#live || this.#ws?.readyState !== 1) return false;
+    this.#ws.send(JSON.stringify(message));
+    return true;
+  }
+
+  /** Sends the `end_utterance` of `finish()` and starts waiting for its `flushed`. */
+  #stopUtterance(): void {
+    const f = this.#finishing;
+    if (!f) return;
+    this.endUtterance();
+    const now = Date.now();
+    Object.assign(f, { target: this.#utterances, ack: null, phase: 'flush', since: now, lastMessageAt: now, rolesFinal: false });
+    this.#schedule();
+  }
+
+  #schedule(): void {
+    const f = this.#finishing;
+    if (!f) return;
+    if (f.timer) clearTimeout(f.timer);
+    const at = f.phase === 'flush' ? f.since + f.flushTimeoutMs : f.phase === 'roles' ? f.since + ROLES_WAIT_MS : f.lastMessageAt + SILENCE_MS;
+    f.timer = setTimeout(() => this.#onTimer(), Math.max(0, at - Date.now()));
+  }
+
+  #onTimer(): void {
+    const f = this.#finishing;
+    if (!f || this.#done) return;
+    if (f.phase === 'flush') {
+      // No flushed in time: an older server. Use the old rule from here on.
+      f.phase = 'fallback';
+      if (f.ack !== null && this.#lastEnd >= f.ack) this.#tailDone();
+      else this.#schedule();
+    } else if (f.phase === 'fallback') {
+      if (Date.now() - f.lastMessageAt >= SILENCE_MS) this.#tailDone();
+      else this.#schedule();
+    } else {
+      this.#completeFinish();
+    }
+  }
+
+  /** Every transcript of the stop is in. With speaker roles on, wait a little for the final roles. */
+  #tailDone(): void {
+    const f = this.#finishing;
+    if (!f) return;
+    if (this.#roles && !f.rolesFinal) {
+      f.phase = 'roles';
+      f.since = Date.now();
+      this.#schedule();
+    } else {
+      this.#completeFinish();
+    }
+  }
+
+  /** Counts acks and flushes, and moves `finish()` on. Runs after the message is queued. */
+  #track(message: StreamServerMessage | StreamFlushed): void {
+    if (message.type === 'ack') this.#acks++;
+    else if (message.type === 'flushed') this.#flushes++;
+    const f = this.#finishing;
+    if (!f || f.target === null) return;
+    f.lastMessageAt = Date.now();
+    switch (message.type) {
+      case 'ack':
+        if (this.#acks !== f.target) return;
+        f.ack = message.processed_until;
+        if (f.phase === 'fallback' && this.#lastEnd >= f.ack) this.#tailDone();
+        return;
+      case 'flushed':
+        if (this.#flushes === f.target && f.phase !== 'roles') this.#tailDone();
+        return;
+      case 'transcript':
+        if (f.phase === 'fallback' && f.ack !== null && (message.segment?.end ?? 0) >= f.ack) this.#tailDone();
+        return;
+      case 'speaker_roles':
+        if (!message.final) return;
+        f.rolesFinal = true;
+        if (f.phase === 'roles') this.#completeFinish();
+        return;
+      default:
+        if (f.phase === 'fallback') this.#schedule();
+    }
   }
 
   #end(failure: LiveStreamError | null): void {
@@ -259,6 +389,7 @@ export class LiveStream implements AsyncIterable<StreamEvent> {
     this.#ws = ws;
     this.#live = false;
     this.#continueReason = null;
+    this.#utterances = this.#acks = this.#flushes = 0;
     const offset = this.#lastEnd;
     let opened = false;
     ws.onopen = () => {
@@ -267,9 +398,9 @@ export class LiveStream implements AsyncIterable<StreamEvent> {
     };
     ws.onmessage = (event: MessageEvent) => {
       if (this.#ws !== ws || typeof event.data !== 'string') return;
-      let message: StreamServerMessage;
+      let message: StreamServerMessage | StreamFlushed;
       try {
-        message = JSON.parse(event.data) as StreamServerMessage;
+        message = JSON.parse(event.data) as StreamServerMessage | StreamFlushed;
       } catch {
         return;
       }
@@ -289,10 +420,11 @@ export class LiveStream implements AsyncIterable<StreamEvent> {
     };
   }
 
-  #onMessage(ws: WebSocket, message: StreamServerMessage, offset: number): void {
+  #onMessage(ws: WebSocket, message: StreamServerMessage | StreamFlushed, offset: number): void {
     switch (message.type) {
       case 'session_ready': {
         this.sessionId = message.session_id;
+        this.#roles = message.effective?.speaker_roles === true;
         this.#attempts = 0;
         if (this.#terms) ws.send(JSON.stringify({ type: 'terms', terms: this.#terms }));
         // The audio that has no transcript yet, from the offset on, then live audio.
@@ -304,10 +436,7 @@ export class LiveStream implements AsyncIterable<StreamEvent> {
           }
         }
         this.#live = true;
-        if (this.#finishing) {
-          this.#finishing.ack = null;
-          this.endUtterance();
-        }
+        if (this.#finishing) this.#stopUtterance();
         this.#opened?.resolve();
         this.#opened = null;
         break;
@@ -316,28 +445,10 @@ export class LiveStream implements AsyncIterable<StreamEvent> {
         const end = message.segment?.end ?? 0;
         if (end > this.#lastEnd) this.#lastEnd = end;
         while (this.#frames.length && (this.#frames[0] as Frame).end <= this.#lastEnd) this.#frames.shift();
-        if (this.#finishing) {
-          if (this.#finishing.ack !== null && end >= this.#finishing.ack) {
-            this.#push(message);
-            this.#completeFinish();
-            return;
-          }
-          this.#armSilence();
-        }
         break;
       }
-      case 'ack':
-        if (this.#finishing) {
-          this.#finishing.ack = message.processed_until;
-          if (this.#lastEnd >= message.processed_until) {
-            this.#push(message);
-            this.#completeFinish();
-            return;
-          }
-          this.#armSilence();
-        }
-        break;
       case 'error':
+        // Not fatal (`asr_failed`: one segment has no transcript): an event, the stream goes on.
         if (message.fatal) {
           if (this.#reconnect && CONTINUE_CODES.has(message.code)) {
             this.#continueReason = message.code;
@@ -353,16 +464,11 @@ export class LiveStream implements AsyncIterable<StreamEvent> {
         break;
     }
     this.#push(message);
-  }
-
-  #armSilence(): void {
-    const f = this.#finishing;
-    if (!f) return;
-    if (f.timer) clearTimeout(f.timer);
-    f.timer = setTimeout(() => this.#completeFinish(), SILENCE_MS);
+    this.#track(message);
   }
 
   #completeFinish(): void {
+    if (this.#done) return;
     this.#sendJson({ type: 'close' });
     this.#closing = true;
     this.#ws?.close(1000);
