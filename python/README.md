@@ -101,11 +101,13 @@ async with client.audio.stream.open(config={"language": "de"}) as stream:
     reader = asyncio.create_task(read())
     async for frame in microphone():  # 16 kHz mono pcm_s16le
         await stream.send(frame)
-    await stream.finish()  # end_utterance, the last transcripts, then close
+    await stream.finish()  # end_utterance, the last transcripts up to flushed, then close
     await reader
 ```
 
 The sync client has the same stream; a thread reads the socket. On a drop, or a fatal error a new stream can continue (`worker_lost`, `max_duration_reached` and others), the stream connects again from the last `segment.end` and sends the audio after that point again. You see a `reconnecting` event. This works for `pcm_s16le`.
+
+`finish()` sends `end_utterance` and waits for the `flushed` event that answers it. The server sends `flushed` after the last transcript of the audio it had, so the end of the recording is not cut off. A segment the server could not transcribe arrives as a `StreamError` with code `asr_failed` and `fatal` false, and the stream goes on. With `speaker_roles` on, `finish()` then waits up to 3 s for the final `speaker_roles` event. Servers before 23.11.2026 send no `flushed`. After `flush_timeout` seconds (default 10, `finish(flush_timeout=5)`) `finish()` ends when a transcript reaches the ack's `processed_until`, or after 3 s without a message. Each `end_utterance()` call gets one `ack` and one `flushed`, in the order of the calls.
 
 ## MediSync Connect
 
