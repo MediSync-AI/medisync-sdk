@@ -130,7 +130,7 @@ class AudioTranscriptions(SyncAPIResource):
         self,
         *,
         file: FileTypes,
-        language: Union[Union[Literal["bg", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "hr", "hu", "it", "lt", "lv", "mt", "nl", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "uk"], str], NotGiven] = NOT_GIVEN,
+        language: Union[Union[Literal["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "yue", "zh"], str], NotGiven] = NOT_GIVEN,
         diarization: Union[bool, NotGiven] = NOT_GIVEN,
         max_speakers: Union[int, NotGiven] = NOT_GIVEN,
         speaker_roles: Union[bool, NotGiven] = NOT_GIVEN,
@@ -1161,6 +1161,7 @@ class ConnectConnections(SyncAPIResource):
         system_id: str,
         name: Union[str, NotGiven] = NOT_GIVEN,
         settings: Union[Mapping[str, Any], NotGiven] = NOT_GIVEN,
+        placement: Union[Union[Literal["hub", "cloud"], str], NotGiven] = NOT_GIVEN,
         idempotency_key: Optional[str] = None,
         extra_headers: Optional[Mapping[str, str]] = None,
         extra_query: Optional[Mapping[str, object]] = None,
@@ -1177,7 +1178,7 @@ class ConnectConnections(SyncAPIResource):
             C.Connection,
             self._client._request(
                 OPERATIONS["connect.connections.create"],
-                body={"site_id": site_id, "system_id": system_id, "name": name, "settings": settings},
+                body={"site_id": site_id, "system_id": system_id, "name": name, "settings": settings, "placement": placement},
                 options=RequestOptions(idempotency_key=idempotency_key, extra_headers=extra_headers, extra_query=extra_query, timeout=timeout, extra_body=extra_body),
                 cast_to=C.Connection,
             ),
@@ -1212,6 +1213,7 @@ class ConnectConnections(SyncAPIResource):
         name: Union[str, NotGiven] = NOT_GIVEN,
         status: Union[Union[Literal["active", "disabled"], str], NotGiven] = NOT_GIVEN,
         settings: Union[Mapping[str, Any], NotGiven] = NOT_GIVEN,
+        calendar_map: Union[Optional[C.CalendarMap], NotGiven] = NOT_GIVEN,
         extra_headers: Optional[Mapping[str, str]] = None,
         extra_query: Optional[Mapping[str, object]] = None,
         extra_body: Optional[Mapping[str, object]] = None,
@@ -1226,7 +1228,7 @@ class ConnectConnections(SyncAPIResource):
             self._client._request(
                 OPERATIONS["connect.connections.update"],
                 path={"connection_id": connection_id},
-                body={"name": name, "status": status, "settings": settings},
+                body={"name": name, "status": status, "settings": settings, "calendar_map": calendar_map},
                 options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout, extra_body=extra_body),
                 cast_to=C.Connection,
             ),
@@ -1241,6 +1243,8 @@ class ConnectConnections(SyncAPIResource):
         timeout: Optional[float] = None,
     ) -> None:
         """Delete a connection
+
+        Deletes the connection. 409 `conflict` while it has open transfers. A cloud connection ends its sign-in first, as `connections.deleteSecrets` does: Google Calendar and Microsoft 365 delete the calendar "MediSync" that Connect made (never another calendar; a failure there does not stop the delete), then the grant is revoked where the provider has revocation, and every stored value goes with the connection.
 
         `DELETE /v1/connect/connections/{connection_id}`, scope `connect.setup`.
         """
@@ -1274,6 +1278,114 @@ class ConnectConnections(SyncAPIResource):
                 path={"connection_id": connection_id},
                 options=RequestOptions(idempotency_key=idempotency_key, extra_headers=extra_headers, extra_query=extra_query, timeout=timeout),
                 cast_to=C.ConnectionTestResult,
+            ),
+        )
+
+    def oauth_start(
+        self,
+        connection_id: str,
+        *,
+        member_id: str,
+        return_url: Union[str, NotGiven] = NOT_GIVEN,
+        idempotency_key: Optional[str] = None,
+        extra_headers: Optional[Mapping[str, str]] = None,
+        extra_query: Optional[Mapping[str, object]] = None,
+        extra_body: Optional[Mapping[str, object]] = None,
+        timeout: Optional[float] = None,
+    ) -> C.ConnectionOAuthStarted:
+        """Start the practice's sign-in to a cloud system
+
+        For a connection with `placement: cloud` whose system signs in with OAuth (`System.auth.kind: oauth2`, for example Google Calendar). Answers Connect's start page of the sign-in: open it in the practice's browser, which it sends on to the provider. The sign-in is bound to the connection, its site, `member_id` (an active member of the site) and the browser that opened the start page, works once and for 15 minutes. After the provider, the browser comes back to Connect (`/oauth/callback`), which stores the grant sealed to the cloud runner, tests the connection and sends the browser to `return_url` with `connection_id`, `status` (`connected` or `failed`) and `reason`; without `return_url` it shows a short page. Connect never answers a token. Start again to connect another account; the new grant replaces the old one. Google Calendar and Microsoft 365: after the sign-in Connect makes the calendar "MediSync" in the practice's account, or takes the one it made before, and sets it as `settings.write_calendar` (with `own_write_calendar: true`), so `appointment.book` writes a neutral "Belegt" event there without a further step. A `write_calendar` the practice chose itself stays.
+
+        `POST /v1/connect/connections/{connection_id}/oauth/start`, scope `connect.setup`, answers hold patient data.
+        """
+        return cast(
+            C.ConnectionOAuthStarted,
+            self._client._request(
+                OPERATIONS["connect.connections.oauthStart"],
+                path={"connection_id": connection_id},
+                body={"member_id": member_id, "return_url": return_url},
+                options=RequestOptions(idempotency_key=idempotency_key, extra_headers=extra_headers, extra_query=extra_query, timeout=timeout, extra_body=extra_body),
+                cast_to=C.ConnectionOAuthStarted,
+            ),
+        )
+
+    def set_secrets(
+        self,
+        connection_id: str,
+        *,
+        fields: Mapping[str, str],
+        member_id: Union[str, NotGiven] = NOT_GIVEN,
+        extra_headers: Optional[Mapping[str, str]] = None,
+        extra_query: Optional[Mapping[str, object]] = None,
+        extra_body: Optional[Mapping[str, object]] = None,
+        timeout: Optional[float] = None,
+    ) -> C.Connection:
+        """Set the copied fields of a cloud connection
+
+        For a connection with `placement: cloud` whose system takes copied values (`System.auth.kind: fields`: an API key, an iCal feed URL). Write only: Connect seals the values to the cloud runner at once, stores them encrypted with the practice's key and never answers or logs them; the answer names the fields that are set (`auth.fields_set`). Send every required field; a new call replaces all values (rotation). A `url` field is an https URL. Connect tests the connection after the change. Hub connections keep their secrets on the hub and answer 400.
+
+        `PUT /v1/connect/connections/{connection_id}/secrets`, scope `connect.setup`, answers hold patient data.
+        """
+        return cast(
+            C.Connection,
+            self._client._request(
+                OPERATIONS["connect.connections.setSecrets"],
+                path={"connection_id": connection_id},
+                body={"fields": fields, "member_id": member_id},
+                options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout, extra_body=extra_body),
+                cast_to=C.Connection,
+            ),
+        )
+
+    def delete_secrets(
+        self,
+        connection_id: str,
+        *,
+        member_id: Union[str, NotGiven] = NOT_GIVEN,
+        extra_headers: Optional[Mapping[str, str]] = None,
+        extra_query: Optional[Mapping[str, object]] = None,
+        extra_body: Optional[Mapping[str, object]] = None,
+        timeout: Optional[float] = None,
+    ) -> C.Connection:
+        """Disconnect a cloud connection's account
+
+        Ends the sign-in of a cloud connection: Google Calendar and Microsoft 365 first delete the calendar "MediSync" that Connect made (never another calendar; a failure there does not stop the disconnect), then an OAuth grant is revoked at the provider where the provider has revocation (Google; Microsoft has none, the practice removes MediSync in its account), then every stored value is deleted. The connection stays, with `auth.state: missing`, until the practice signs in again. `connections.delete` does the same before it deletes the connection.
+
+        `DELETE /v1/connect/connections/{connection_id}/secrets`, scope `connect.setup`.
+        """
+        return cast(
+            C.Connection,
+            self._client._request(
+                OPERATIONS["connect.connections.deleteSecrets"],
+                path={"connection_id": connection_id},
+                body={"member_id": member_id},
+                options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout, extra_body=extra_body),
+                cast_to=C.Connection,
+            ),
+        )
+
+    def get_inbound(
+        self,
+        connection_id: str,
+        *,
+        extra_headers: Optional[Mapping[str, str]] = None,
+        extra_query: Optional[Mapping[str, object]] = None,
+        timeout: Optional[float] = None,
+    ) -> C.ConnectionInbound:
+        """Get the webhook address of a cloud connection
+
+        For a connection with `placement: cloud` whose system can call Connect when an appointment changes (eTermin, Cal.com). Answers the address the practice pastes into the system's webhook settings. Connect checks every call to it before it uses the call: eTermin signs nothing, so the token in the address is the check; Cal.com signs each call with the webhook secret the practice sets there and in `connections.setSecrets` (field `webhook_secret`). A call that passes ends in `busy.changed` for the days it names; its body is dropped. The address stays the same for the connection. Treat it like a password: anyone who has it can make Connect read the system's busy times again. 422 `verb_unsupported` with `reason: no_webhook`: the system sends no webhook calls to Connect (busy times then change with the poll every few minutes). 400 `hub_connection`: a hub connection.
+
+        `GET /v1/connect/connections/{connection_id}/inbound`, scope `connect.setup`, answers hold patient data.
+        """
+        return cast(
+            C.ConnectionInbound,
+            self._client._request(
+                OPERATIONS["connect.connections.getInbound"],
+                path={"connection_id": connection_id},
+                options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout),
+                cast_to=C.ConnectionInbound,
             ),
         )
 
@@ -2349,12 +2461,43 @@ class ConnectAppointments(SyncAPIResource):
             list_type=C.SiteAppointmentList,
         )
 
+    def busy_site(
+        self,
+        site_id: str,
+        *,
+        from_: str,
+        to: str,
+        member_id: Union[str, NotGiven] = NOT_GIVEN,
+        connection_id: Union[str, NotGiven] = NOT_GIVEN,
+        cursor: Union[str, NotGiven] = NOT_GIVEN,
+        limit: Union[int, NotGiven] = NOT_GIVEN,
+        extra_headers: Optional[Mapping[str, str]] = None,
+        extra_query: Optional[Mapping[str, object]] = None,
+        timeout: Optional[float] = None,
+    ) -> SyncCursorPage[C.BusyInterval]:
+        """Busy times of a site in a date range
+
+        The times the calendars of the site are taken, without patient data, for a booking page that must not double-book. Every connection of the site is asked at once (or only `connection_id`). A connection that runs `appointment.busy` answers with busy intervals. A connection that runs only `appointment.list` over a range of days is read with it, and the cloud keeps start, end, column and id of each appointment and drops every other field before it answers. Each interval names its connection, its system and `member_id` from the connection's `calendar_map` (`null`: it counts for the whole practice). `sources` says per connection whether it answered and whether its answer is complete. `complete` is `true` only when every source answered completely. When it is `false`, a time without a busy interval is not known to be free. A connection that fails does not fail the call while another one answers.
+
+        `GET /v1/connect/sites/{site_id}/busy`, scope `connect.read`, verb `appointment.busy`, metered as `connect.read`.
+        """
+        return self._client._request_page(
+            OPERATIONS["connect.appointments.busySite"],
+            path={"site_id": site_id},
+            query={"from": from_, "to": to, "member_id": member_id, "connection_id": connection_id, "cursor": cursor, "limit": limit},
+            options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout),
+            item_type=C.BusyInterval,
+            list_type=C.SiteBusyList,
+        )
+
     def list_slots(
         self,
         connection_id: str,
         *,
         from_: Union[str, NotGiven] = NOT_GIVEN,
         to: Union[str, NotGiven] = NOT_GIVEN,
+        practitioner: Union[str, NotGiven] = NOT_GIVEN,
+        appointment_type: Union[str, NotGiven] = NOT_GIVEN,
         cursor: Union[str, NotGiven] = NOT_GIVEN,
         limit: Union[int, NotGiven] = NOT_GIVEN,
         extra_headers: Optional[Mapping[str, str]] = None,
@@ -2368,7 +2511,7 @@ class ConnectAppointments(SyncAPIResource):
         return self._client._request_page(
             OPERATIONS["connect.appointments.listSlots"],
             path={"connection_id": connection_id},
-            query={"from": from_, "to": to, "cursor": cursor, "limit": limit},
+            query={"from": from_, "to": to, "practitioner": practitioner, "appointment_type": appointment_type, "cursor": cursor, "limit": limit},
             options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout),
             item_type=C.AppointmentSlot,
             list_type=C.AppointmentSlotList,
@@ -2402,6 +2545,35 @@ class ConnectAppointments(SyncAPIResource):
             list_type=C.AppointmentList,
         )
 
+    def busy(
+        self,
+        connection_id: str,
+        *,
+        from_: str,
+        to: str,
+        practitioner: Union[str, NotGiven] = NOT_GIVEN,
+        member_id: Union[str, NotGiven] = NOT_GIVEN,
+        cursor: Union[str, NotGiven] = NOT_GIVEN,
+        limit: Union[int, NotGiven] = NOT_GIVEN,
+        extra_headers: Optional[Mapping[str, str]] = None,
+        extra_query: Optional[Mapping[str, object]] = None,
+        timeout: Optional[float] = None,
+    ) -> SyncCursorPage[C.BusyInterval]:
+        """List busy times
+
+        The times the connection's calendar is taken from day `from` to day `to`, without patient data: start, end, column and an id per interval. `complete: false` means the answer may miss busy times (`reason` says why): treat a time without an interval as unknown then, not as free. A connection whose system has no `appointment.busy` but lists appointments over a range of days is read with `appointment.list`, reduced in the cloud the same way.
+
+        `GET /v1/connect/connections/{connection_id}/appointment-busy`, scope `connect.read`, verb `appointment.busy`, metered as `connect.read`.
+        """
+        return self._client._request_page(
+            OPERATIONS["connect.appointments.busy"],
+            path={"connection_id": connection_id},
+            query={"from": from_, "to": to, "practitioner": practitioner, "member_id": member_id, "cursor": cursor, "limit": limit},
+            options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout),
+            item_type=C.BusyInterval,
+            list_type=C.BusyIntervalList,
+        )
+
     def plan_book(
         self,
         connection_id: str,
@@ -2409,6 +2581,7 @@ class ConnectAppointments(SyncAPIResource):
         patient: Union[C.PatientRef, Mapping[str, Any]],
         slot_id: str,
         reason: Union[str, NotGiven] = NOT_GIVEN,
+        source: Union[Union[C.AppointmentBookPlanRequestSource, Mapping[str, Any]], NotGiven] = NOT_GIVEN,
         idempotency_key: Optional[str] = None,
         extra_headers: Optional[Mapping[str, str]] = None,
         extra_query: Optional[Mapping[str, object]] = None,
@@ -2424,7 +2597,7 @@ class ConnectAppointments(SyncAPIResource):
             self._client._request(
                 OPERATIONS["connect.appointments.planBook"],
                 path={"connection_id": connection_id},
-                body={"patient": patient, "slot_id": slot_id, "reason": reason},
+                body={"patient": patient, "slot_id": slot_id, "reason": reason, "source": source},
                 options=RequestOptions(idempotency_key=idempotency_key, extra_headers=extra_headers, extra_query=extra_query, timeout=timeout, extra_body=extra_body),
                 cast_to=C.Plan,
             ),
@@ -3365,7 +3538,7 @@ class AsyncAudioTranscriptions(AsyncAPIResource):
         self,
         *,
         file: FileTypes,
-        language: Union[Union[Literal["bg", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "hr", "hu", "it", "lt", "lv", "mt", "nl", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "uk"], str], NotGiven] = NOT_GIVEN,
+        language: Union[Union[Literal["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "yue", "zh"], str], NotGiven] = NOT_GIVEN,
         diarization: Union[bool, NotGiven] = NOT_GIVEN,
         max_speakers: Union[int, NotGiven] = NOT_GIVEN,
         speaker_roles: Union[bool, NotGiven] = NOT_GIVEN,
@@ -4396,6 +4569,7 @@ class AsyncConnectConnections(AsyncAPIResource):
         system_id: str,
         name: Union[str, NotGiven] = NOT_GIVEN,
         settings: Union[Mapping[str, Any], NotGiven] = NOT_GIVEN,
+        placement: Union[Union[Literal["hub", "cloud"], str], NotGiven] = NOT_GIVEN,
         idempotency_key: Optional[str] = None,
         extra_headers: Optional[Mapping[str, str]] = None,
         extra_query: Optional[Mapping[str, object]] = None,
@@ -4412,7 +4586,7 @@ class AsyncConnectConnections(AsyncAPIResource):
             C.Connection,
             await self._client._request(
                 OPERATIONS["connect.connections.create"],
-                body={"site_id": site_id, "system_id": system_id, "name": name, "settings": settings},
+                body={"site_id": site_id, "system_id": system_id, "name": name, "settings": settings, "placement": placement},
                 options=RequestOptions(idempotency_key=idempotency_key, extra_headers=extra_headers, extra_query=extra_query, timeout=timeout, extra_body=extra_body),
                 cast_to=C.Connection,
             ),
@@ -4447,6 +4621,7 @@ class AsyncConnectConnections(AsyncAPIResource):
         name: Union[str, NotGiven] = NOT_GIVEN,
         status: Union[Union[Literal["active", "disabled"], str], NotGiven] = NOT_GIVEN,
         settings: Union[Mapping[str, Any], NotGiven] = NOT_GIVEN,
+        calendar_map: Union[Optional[C.CalendarMap], NotGiven] = NOT_GIVEN,
         extra_headers: Optional[Mapping[str, str]] = None,
         extra_query: Optional[Mapping[str, object]] = None,
         extra_body: Optional[Mapping[str, object]] = None,
@@ -4461,7 +4636,7 @@ class AsyncConnectConnections(AsyncAPIResource):
             await self._client._request(
                 OPERATIONS["connect.connections.update"],
                 path={"connection_id": connection_id},
-                body={"name": name, "status": status, "settings": settings},
+                body={"name": name, "status": status, "settings": settings, "calendar_map": calendar_map},
                 options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout, extra_body=extra_body),
                 cast_to=C.Connection,
             ),
@@ -4476,6 +4651,8 @@ class AsyncConnectConnections(AsyncAPIResource):
         timeout: Optional[float] = None,
     ) -> None:
         """Delete a connection
+
+        Deletes the connection. 409 `conflict` while it has open transfers. A cloud connection ends its sign-in first, as `connections.deleteSecrets` does: Google Calendar and Microsoft 365 delete the calendar "MediSync" that Connect made (never another calendar; a failure there does not stop the delete), then the grant is revoked where the provider has revocation, and every stored value goes with the connection.
 
         `DELETE /v1/connect/connections/{connection_id}`, scope `connect.setup`.
         """
@@ -4509,6 +4686,114 @@ class AsyncConnectConnections(AsyncAPIResource):
                 path={"connection_id": connection_id},
                 options=RequestOptions(idempotency_key=idempotency_key, extra_headers=extra_headers, extra_query=extra_query, timeout=timeout),
                 cast_to=C.ConnectionTestResult,
+            ),
+        )
+
+    async def oauth_start(
+        self,
+        connection_id: str,
+        *,
+        member_id: str,
+        return_url: Union[str, NotGiven] = NOT_GIVEN,
+        idempotency_key: Optional[str] = None,
+        extra_headers: Optional[Mapping[str, str]] = None,
+        extra_query: Optional[Mapping[str, object]] = None,
+        extra_body: Optional[Mapping[str, object]] = None,
+        timeout: Optional[float] = None,
+    ) -> C.ConnectionOAuthStarted:
+        """Start the practice's sign-in to a cloud system
+
+        For a connection with `placement: cloud` whose system signs in with OAuth (`System.auth.kind: oauth2`, for example Google Calendar). Answers Connect's start page of the sign-in: open it in the practice's browser, which it sends on to the provider. The sign-in is bound to the connection, its site, `member_id` (an active member of the site) and the browser that opened the start page, works once and for 15 minutes. After the provider, the browser comes back to Connect (`/oauth/callback`), which stores the grant sealed to the cloud runner, tests the connection and sends the browser to `return_url` with `connection_id`, `status` (`connected` or `failed`) and `reason`; without `return_url` it shows a short page. Connect never answers a token. Start again to connect another account; the new grant replaces the old one. Google Calendar and Microsoft 365: after the sign-in Connect makes the calendar "MediSync" in the practice's account, or takes the one it made before, and sets it as `settings.write_calendar` (with `own_write_calendar: true`), so `appointment.book` writes a neutral "Belegt" event there without a further step. A `write_calendar` the practice chose itself stays.
+
+        `POST /v1/connect/connections/{connection_id}/oauth/start`, scope `connect.setup`, answers hold patient data.
+        """
+        return cast(
+            C.ConnectionOAuthStarted,
+            await self._client._request(
+                OPERATIONS["connect.connections.oauthStart"],
+                path={"connection_id": connection_id},
+                body={"member_id": member_id, "return_url": return_url},
+                options=RequestOptions(idempotency_key=idempotency_key, extra_headers=extra_headers, extra_query=extra_query, timeout=timeout, extra_body=extra_body),
+                cast_to=C.ConnectionOAuthStarted,
+            ),
+        )
+
+    async def set_secrets(
+        self,
+        connection_id: str,
+        *,
+        fields: Mapping[str, str],
+        member_id: Union[str, NotGiven] = NOT_GIVEN,
+        extra_headers: Optional[Mapping[str, str]] = None,
+        extra_query: Optional[Mapping[str, object]] = None,
+        extra_body: Optional[Mapping[str, object]] = None,
+        timeout: Optional[float] = None,
+    ) -> C.Connection:
+        """Set the copied fields of a cloud connection
+
+        For a connection with `placement: cloud` whose system takes copied values (`System.auth.kind: fields`: an API key, an iCal feed URL). Write only: Connect seals the values to the cloud runner at once, stores them encrypted with the practice's key and never answers or logs them; the answer names the fields that are set (`auth.fields_set`). Send every required field; a new call replaces all values (rotation). A `url` field is an https URL. Connect tests the connection after the change. Hub connections keep their secrets on the hub and answer 400.
+
+        `PUT /v1/connect/connections/{connection_id}/secrets`, scope `connect.setup`, answers hold patient data.
+        """
+        return cast(
+            C.Connection,
+            await self._client._request(
+                OPERATIONS["connect.connections.setSecrets"],
+                path={"connection_id": connection_id},
+                body={"fields": fields, "member_id": member_id},
+                options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout, extra_body=extra_body),
+                cast_to=C.Connection,
+            ),
+        )
+
+    async def delete_secrets(
+        self,
+        connection_id: str,
+        *,
+        member_id: Union[str, NotGiven] = NOT_GIVEN,
+        extra_headers: Optional[Mapping[str, str]] = None,
+        extra_query: Optional[Mapping[str, object]] = None,
+        extra_body: Optional[Mapping[str, object]] = None,
+        timeout: Optional[float] = None,
+    ) -> C.Connection:
+        """Disconnect a cloud connection's account
+
+        Ends the sign-in of a cloud connection: Google Calendar and Microsoft 365 first delete the calendar "MediSync" that Connect made (never another calendar; a failure there does not stop the disconnect), then an OAuth grant is revoked at the provider where the provider has revocation (Google; Microsoft has none, the practice removes MediSync in its account), then every stored value is deleted. The connection stays, with `auth.state: missing`, until the practice signs in again. `connections.delete` does the same before it deletes the connection.
+
+        `DELETE /v1/connect/connections/{connection_id}/secrets`, scope `connect.setup`.
+        """
+        return cast(
+            C.Connection,
+            await self._client._request(
+                OPERATIONS["connect.connections.deleteSecrets"],
+                path={"connection_id": connection_id},
+                body={"member_id": member_id},
+                options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout, extra_body=extra_body),
+                cast_to=C.Connection,
+            ),
+        )
+
+    async def get_inbound(
+        self,
+        connection_id: str,
+        *,
+        extra_headers: Optional[Mapping[str, str]] = None,
+        extra_query: Optional[Mapping[str, object]] = None,
+        timeout: Optional[float] = None,
+    ) -> C.ConnectionInbound:
+        """Get the webhook address of a cloud connection
+
+        For a connection with `placement: cloud` whose system can call Connect when an appointment changes (eTermin, Cal.com). Answers the address the practice pastes into the system's webhook settings. Connect checks every call to it before it uses the call: eTermin signs nothing, so the token in the address is the check; Cal.com signs each call with the webhook secret the practice sets there and in `connections.setSecrets` (field `webhook_secret`). A call that passes ends in `busy.changed` for the days it names; its body is dropped. The address stays the same for the connection. Treat it like a password: anyone who has it can make Connect read the system's busy times again. 422 `verb_unsupported` with `reason: no_webhook`: the system sends no webhook calls to Connect (busy times then change with the poll every few minutes). 400 `hub_connection`: a hub connection.
+
+        `GET /v1/connect/connections/{connection_id}/inbound`, scope `connect.setup`, answers hold patient data.
+        """
+        return cast(
+            C.ConnectionInbound,
+            await self._client._request(
+                OPERATIONS["connect.connections.getInbound"],
+                path={"connection_id": connection_id},
+                options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout),
+                cast_to=C.ConnectionInbound,
             ),
         )
 
@@ -5584,12 +5869,43 @@ class AsyncConnectAppointments(AsyncAPIResource):
             list_type=C.SiteAppointmentList,
         )
 
+    def busy_site(
+        self,
+        site_id: str,
+        *,
+        from_: str,
+        to: str,
+        member_id: Union[str, NotGiven] = NOT_GIVEN,
+        connection_id: Union[str, NotGiven] = NOT_GIVEN,
+        cursor: Union[str, NotGiven] = NOT_GIVEN,
+        limit: Union[int, NotGiven] = NOT_GIVEN,
+        extra_headers: Optional[Mapping[str, str]] = None,
+        extra_query: Optional[Mapping[str, object]] = None,
+        timeout: Optional[float] = None,
+    ) -> AsyncPaginator[C.BusyInterval]:
+        """Busy times of a site in a date range
+
+        The times the calendars of the site are taken, without patient data, for a booking page that must not double-book. Every connection of the site is asked at once (or only `connection_id`). A connection that runs `appointment.busy` answers with busy intervals. A connection that runs only `appointment.list` over a range of days is read with it, and the cloud keeps start, end, column and id of each appointment and drops every other field before it answers. Each interval names its connection, its system and `member_id` from the connection's `calendar_map` (`null`: it counts for the whole practice). `sources` says per connection whether it answered and whether its answer is complete. `complete` is `true` only when every source answered completely. When it is `false`, a time without a busy interval is not known to be free. A connection that fails does not fail the call while another one answers.
+
+        `GET /v1/connect/sites/{site_id}/busy`, scope `connect.read`, verb `appointment.busy`, metered as `connect.read`.
+        """
+        return self._client._request_page(
+            OPERATIONS["connect.appointments.busySite"],
+            path={"site_id": site_id},
+            query={"from": from_, "to": to, "member_id": member_id, "connection_id": connection_id, "cursor": cursor, "limit": limit},
+            options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout),
+            item_type=C.BusyInterval,
+            list_type=C.SiteBusyList,
+        )
+
     def list_slots(
         self,
         connection_id: str,
         *,
         from_: Union[str, NotGiven] = NOT_GIVEN,
         to: Union[str, NotGiven] = NOT_GIVEN,
+        practitioner: Union[str, NotGiven] = NOT_GIVEN,
+        appointment_type: Union[str, NotGiven] = NOT_GIVEN,
         cursor: Union[str, NotGiven] = NOT_GIVEN,
         limit: Union[int, NotGiven] = NOT_GIVEN,
         extra_headers: Optional[Mapping[str, str]] = None,
@@ -5603,7 +5919,7 @@ class AsyncConnectAppointments(AsyncAPIResource):
         return self._client._request_page(
             OPERATIONS["connect.appointments.listSlots"],
             path={"connection_id": connection_id},
-            query={"from": from_, "to": to, "cursor": cursor, "limit": limit},
+            query={"from": from_, "to": to, "practitioner": practitioner, "appointment_type": appointment_type, "cursor": cursor, "limit": limit},
             options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout),
             item_type=C.AppointmentSlot,
             list_type=C.AppointmentSlotList,
@@ -5637,6 +5953,35 @@ class AsyncConnectAppointments(AsyncAPIResource):
             list_type=C.AppointmentList,
         )
 
+    def busy(
+        self,
+        connection_id: str,
+        *,
+        from_: str,
+        to: str,
+        practitioner: Union[str, NotGiven] = NOT_GIVEN,
+        member_id: Union[str, NotGiven] = NOT_GIVEN,
+        cursor: Union[str, NotGiven] = NOT_GIVEN,
+        limit: Union[int, NotGiven] = NOT_GIVEN,
+        extra_headers: Optional[Mapping[str, str]] = None,
+        extra_query: Optional[Mapping[str, object]] = None,
+        timeout: Optional[float] = None,
+    ) -> AsyncPaginator[C.BusyInterval]:
+        """List busy times
+
+        The times the connection's calendar is taken from day `from` to day `to`, without patient data: start, end, column and an id per interval. `complete: false` means the answer may miss busy times (`reason` says why): treat a time without an interval as unknown then, not as free. A connection whose system has no `appointment.busy` but lists appointments over a range of days is read with `appointment.list`, reduced in the cloud the same way.
+
+        `GET /v1/connect/connections/{connection_id}/appointment-busy`, scope `connect.read`, verb `appointment.busy`, metered as `connect.read`.
+        """
+        return self._client._request_page(
+            OPERATIONS["connect.appointments.busy"],
+            path={"connection_id": connection_id},
+            query={"from": from_, "to": to, "practitioner": practitioner, "member_id": member_id, "cursor": cursor, "limit": limit},
+            options=RequestOptions(extra_headers=extra_headers, extra_query=extra_query, timeout=timeout),
+            item_type=C.BusyInterval,
+            list_type=C.BusyIntervalList,
+        )
+
     async def plan_book(
         self,
         connection_id: str,
@@ -5644,6 +5989,7 @@ class AsyncConnectAppointments(AsyncAPIResource):
         patient: Union[C.PatientRef, Mapping[str, Any]],
         slot_id: str,
         reason: Union[str, NotGiven] = NOT_GIVEN,
+        source: Union[Union[C.AppointmentBookPlanRequestSource, Mapping[str, Any]], NotGiven] = NOT_GIVEN,
         idempotency_key: Optional[str] = None,
         extra_headers: Optional[Mapping[str, str]] = None,
         extra_query: Optional[Mapping[str, object]] = None,
@@ -5659,7 +6005,7 @@ class AsyncConnectAppointments(AsyncAPIResource):
             await self._client._request(
                 OPERATIONS["connect.appointments.planBook"],
                 path={"connection_id": connection_id},
-                body={"patient": patient, "slot_id": slot_id, "reason": reason},
+                body={"patient": patient, "slot_id": slot_id, "reason": reason, "source": source},
                 options=RequestOptions(idempotency_key=idempotency_key, extra_headers=extra_headers, extra_query=extra_query, timeout=timeout, extra_body=extra_body),
                 cast_to=C.Plan,
             ),

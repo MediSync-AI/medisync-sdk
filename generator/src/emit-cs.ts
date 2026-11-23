@@ -191,6 +191,7 @@ function emitModels(models: Map<string, Model>, api: Api, ir: Ir, source: string
   out += `namespace ${NS[api]};\n`;
   for (const m of models.values()) {
     if (TAKEN.has(m.name)) throw new Error(`The model ${m.name} has a name the C# code needs`);
+    if (api === 'live' && HAND_WRITTEN_LIVE.has(m.name)) continue;
     if (m.kind === 'object') out += emitModel(m, ir, liveServer);
     else if (m.type.kind === 'string' && m.type.enum) out += emitEnum(csClass(api, m.name), m.type.enum, m.description);
   }
@@ -200,7 +201,7 @@ function emitModels(models: Map<string, Model>, api: Api, ir: Ir, source: string
 function serverMessages(ir: Ir): string {
   let out = '\n/// <summary>The classes of the messages the server sends on the live stream, by <c>type</c>.</summary>\npublic static class StreamServerMessages\n{\n';
   out += '    private static readonly Dictionary<string, Type> ByType = new()\n    {\n';
-  for (const m of ir.liveServerMessages) out += `        [${JSON.stringify(m.type)}] = typeof(${csClass('live', m.model)}),\n`;
+  for (const m of ir.liveServerMessages) if (!HAND_WRITTEN_LIVE.has(m.model)) out += `        [${JSON.stringify(m.type)}] = typeof(${csClass('live', m.model)}),\n`;
   out += '    };\n\n    /// <summary>The class of a message type, or null for a type this SDK version does not know.</summary>\n    public static Type? ForType(string type) => ByType.TryGetValue(type, out var t) ? t : null;\n}\n';
   return out;
 }
@@ -355,6 +356,10 @@ namespace MediSync.Resources;
   });
   return out;
 }
+
+// Live messages this language keeps by hand: 0.2.0 published them in the audio package before the
+// spec had them. One class per message, so the generator writes no second one and no registry entry.
+const HAND_WRITTEN_LIVE = new Set(['StreamFlushed']);
 
 export function emitCs(ir: Ir): Record<string, string> {
   const liveServer = new Set(ir.liveServerMessages.map((m) => m.model));

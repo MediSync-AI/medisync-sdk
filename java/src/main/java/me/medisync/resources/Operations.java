@@ -353,6 +353,45 @@ public final class Operations {
           .x("usage", "setup")
           .build();
 
+  /** <code>POST /v1/connect/connections/{connection_id}/oauth/start</code> */
+  public static final OperationMeta CONNECT_CONNECTIONS_OAUTH_START =
+      OperationMeta.builder("connect.connections.oauthStart", "connect", "connections.oauthStart", "POST", "/v1/connect/connections/{connection_id}/oauth/start")
+          .body("json")
+          .response("json")
+          .idempotency("optional")
+          .x("scope", "connect.setup")
+          .x("phi", "true")
+          .x("usage", "setup")
+          .build();
+
+  /** <code>PUT /v1/connect/connections/{connection_id}/secrets</code> */
+  public static final OperationMeta CONNECT_CONNECTIONS_SET_SECRETS =
+      OperationMeta.builder("connect.connections.setSecrets", "connect", "connections.setSecrets", "PUT", "/v1/connect/connections/{connection_id}/secrets")
+          .body("json")
+          .response("json")
+          .x("scope", "connect.setup")
+          .x("phi", "true")
+          .x("usage", "setup")
+          .build();
+
+  /** <code>DELETE /v1/connect/connections/{connection_id}/secrets</code> */
+  public static final OperationMeta CONNECT_CONNECTIONS_DELETE_SECRETS =
+      OperationMeta.builder("connect.connections.deleteSecrets", "connect", "connections.deleteSecrets", "DELETE", "/v1/connect/connections/{connection_id}/secrets")
+          .body("json")
+          .response("json")
+          .x("scope", "connect.setup")
+          .x("usage", "setup")
+          .build();
+
+  /** <code>GET /v1/connect/connections/{connection_id}/inbound</code> */
+  public static final OperationMeta CONNECT_CONNECTIONS_GET_INBOUND =
+      OperationMeta.builder("connect.connections.getInbound", "connect", "connections.getInbound", "GET", "/v1/connect/connections/{connection_id}/inbound")
+          .response("json")
+          .x("scope", "connect.setup")
+          .x("phi", "true")
+          .x("usage", "setup")
+          .build();
+
   /** <code>GET /v1/connect/connections/{connection_id}/health</code> */
   public static final OperationMeta CONNECT_CONNECTIONS_GET_HEALTH =
       OperationMeta.builder("connect.connections.getHealth", "connect", "connections.getHealth", "GET", "/v1/connect/connections/{connection_id}/health")
@@ -756,6 +795,19 @@ public final class Operations {
           .x("usage", "read")
           .build();
 
+  /** <code>GET /v1/connect/sites/{site_id}/busy</code> */
+  public static final OperationMeta CONNECT_APPOINTMENTS_BUSY_SITE =
+      OperationMeta.builder("connect.appointments.busySite", "connect", "appointments.busySite", "GET", "/v1/connect/sites/{site_id}/busy")
+          .query(true)
+          .response("json")
+          .paginated(true)
+          .x("scope", "connect.read")
+          .x("verb", "appointment.busy")
+          .x("phi", "false")
+          .x("metered", "connect.read")
+          .x("usage", "read")
+          .build();
+
   /** <code>POST /v1/connect/sites/{site_id}/launches</code> */
   public static final OperationMeta CONNECT_CONTEXT_CREATE_LAUNCH =
       OperationMeta.builder("connect.context.createLaunch", "connect", "context.createLaunch", "POST", "/v1/connect/sites/{site_id}/launches")
@@ -1025,6 +1077,19 @@ public final class Operations {
           .x("usage", "read")
           .build();
 
+  /** <code>GET /v1/connect/connections/{connection_id}/appointment-busy</code> */
+  public static final OperationMeta CONNECT_APPOINTMENTS_BUSY =
+      OperationMeta.builder("connect.appointments.busy", "connect", "appointments.busy", "GET", "/v1/connect/connections/{connection_id}/appointment-busy")
+          .query(true)
+          .response("json")
+          .paginated(true)
+          .x("scope", "connect.read")
+          .x("verb", "appointment.busy")
+          .x("phi", "false")
+          .x("metered", "connect.read")
+          .x("usage", "read")
+          .build();
+
   /** <code>POST /v1/connect/connections/{connection_id}/plans/appointment-book</code> */
   public static final OperationMeta CONNECT_APPOINTMENTS_PLAN_BOOK =
       OperationMeta.builder("connect.appointments.planBook", "connect", "appointments.planBook", "POST", "/v1/connect/connections/{connection_id}/plans/appointment-book")
@@ -1168,6 +1233,10 @@ public final class Operations {
     all.put("connect.connections.update", CONNECT_CONNECTIONS_UPDATE);
     all.put("connect.connections.delete", CONNECT_CONNECTIONS_DELETE);
     all.put("connect.connections.test", CONNECT_CONNECTIONS_TEST);
+    all.put("connect.connections.oauthStart", CONNECT_CONNECTIONS_OAUTH_START);
+    all.put("connect.connections.setSecrets", CONNECT_CONNECTIONS_SET_SECRETS);
+    all.put("connect.connections.deleteSecrets", CONNECT_CONNECTIONS_DELETE_SECRETS);
+    all.put("connect.connections.getInbound", CONNECT_CONNECTIONS_GET_INBOUND);
     all.put("connect.connections.getHealth", CONNECT_CONNECTIONS_GET_HEALTH);
     all.put("connect.capabilities.get", CONNECT_CAPABILITIES_GET);
     all.put("connect.grants.list", CONNECT_GRANTS_LIST);
@@ -1210,6 +1279,7 @@ public final class Operations {
     all.put("connect.context.getPatient", CONNECT_CONTEXT_GET_PATIENT);
     all.put("connect.context.listEvents", CONNECT_CONTEXT_LIST_EVENTS);
     all.put("connect.appointments.listSite", CONNECT_APPOINTMENTS_LIST_SITE);
+    all.put("connect.appointments.busySite", CONNECT_APPOINTMENTS_BUSY_SITE);
     all.put("connect.context.createLaunch", CONNECT_CONTEXT_CREATE_LAUNCH);
     all.put("connect.patients.search", CONNECT_PATIENTS_SEARCH);
     all.put("connect.patients.get", CONNECT_PATIENTS_GET);
@@ -1232,6 +1302,7 @@ public final class Operations {
     all.put("connect.documents.planAttach", CONNECT_DOCUMENTS_PLAN_ATTACH);
     all.put("connect.appointments.listSlots", CONNECT_APPOINTMENTS_LIST_SLOTS);
     all.put("connect.appointments.list", CONNECT_APPOINTMENTS_LIST);
+    all.put("connect.appointments.busy", CONNECT_APPOINTMENTS_BUSY);
     all.put("connect.appointments.planBook", CONNECT_APPOINTMENTS_PLAN_BOOK);
     all.put("connect.appointments.planCancel", CONNECT_APPOINTMENTS_PLAN_CANCEL);
     all.put("connect.referrals.planOrder", CONNECT_REFERRALS_PLAN_ORDER);

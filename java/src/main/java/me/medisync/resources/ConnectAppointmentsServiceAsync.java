@@ -13,11 +13,16 @@ import me.medisync.models.connect.AppointmentCancelPlanRequest;
 import me.medisync.models.connect.AppointmentList;
 import me.medisync.models.connect.AppointmentSlot;
 import me.medisync.models.connect.AppointmentSlotList;
+import me.medisync.models.connect.AppointmentsBusyQuery;
+import me.medisync.models.connect.AppointmentsBusySiteQuery;
 import me.medisync.models.connect.AppointmentsListQuery;
 import me.medisync.models.connect.AppointmentsListSiteQuery;
 import me.medisync.models.connect.AppointmentsListSlotsQuery;
+import me.medisync.models.connect.BusyInterval;
+import me.medisync.models.connect.BusyIntervalList;
 import me.medisync.models.connect.Plan;
 import me.medisync.models.connect.SiteAppointmentList;
+import me.medisync.models.connect.SiteBusyList;
 import org.jspecify.annotations.Nullable;
 
 /** The <code>connect.appointments</code> methods, async. */
@@ -48,6 +53,28 @@ public final class ConnectAppointmentsServiceAsync {
    */
   public CompletableFuture<Page<Appointment, SiteAppointmentList>> listSite(String siteId, AppointmentsListSiteQuery query, RequestOptions options) {
     return core.requestPage(Operations.CONNECT_APPOINTMENTS_LIST_SITE, RequestArgs.create().path("site_id", siteId).query(query), Types.of(Appointment.class), Types.of(SiteAppointmentList.class), options);
+  }
+
+  /**
+   * Busy times of a site in a date range
+   * <p>
+   * The times the calendars of the site are taken, without patient data, for a booking page that must not double-book. Every connection of the site is asked at once (or only <code>connection_id</code>). A connection that runs <code>appointment.busy</code> answers with busy intervals. A connection that runs only <code>appointment.list</code> over a range of days is read with it, and the cloud keeps start, end, column and id of each appointment and drops every other field before it answers. Each interval names its connection, its system and <code>member_id</code> from the connection's <code>calendar_map</code> (<code>null</code>: it counts for the whole practice). <code>sources</code> says per connection whether it answered and whether its answer is complete. <code>complete</code> is <code>true</code> only when every source answered completely. When it is <code>false</code>, a time without a busy interval is not known to be free. A connection that fails does not fail the call while another one answers.
+   * <p>
+   * <code>GET /v1/connect/sites/{site_id}/busy</code>, scope <code>connect.read</code>, verb <code>appointment.busy</code>, metered as <code>connect.read</code>.
+   */
+  public CompletableFuture<Page<BusyInterval, SiteBusyList>> busySite(String siteId, AppointmentsBusySiteQuery query) {
+    return busySite(siteId, query, RequestOptions.none());
+  }
+
+  /**
+   * Busy times of a site in a date range
+   * <p>
+   * The times the calendars of the site are taken, without patient data, for a booking page that must not double-book. Every connection of the site is asked at once (or only <code>connection_id</code>). A connection that runs <code>appointment.busy</code> answers with busy intervals. A connection that runs only <code>appointment.list</code> over a range of days is read with it, and the cloud keeps start, end, column and id of each appointment and drops every other field before it answers. Each interval names its connection, its system and <code>member_id</code> from the connection's <code>calendar_map</code> (<code>null</code>: it counts for the whole practice). <code>sources</code> says per connection whether it answered and whether its answer is complete. <code>complete</code> is <code>true</code> only when every source answered completely. When it is <code>false</code>, a time without a busy interval is not known to be free. A connection that fails does not fail the call while another one answers.
+   * <p>
+   * <code>GET /v1/connect/sites/{site_id}/busy</code>, scope <code>connect.read</code>, verb <code>appointment.busy</code>, metered as <code>connect.read</code>.
+   */
+  public CompletableFuture<Page<BusyInterval, SiteBusyList>> busySite(String siteId, AppointmentsBusySiteQuery query, RequestOptions options) {
+    return core.requestPage(Operations.CONNECT_APPOINTMENTS_BUSY_SITE, RequestArgs.create().path("site_id", siteId).query(query), Types.of(BusyInterval.class), Types.of(SiteBusyList.class), options);
   }
 
   /**
@@ -93,6 +120,28 @@ public final class ConnectAppointmentsServiceAsync {
    */
   public CompletableFuture<Page<Appointment, AppointmentList>> list(String connectionId, AppointmentsListQuery query, RequestOptions options) {
     return core.requestPage(Operations.CONNECT_APPOINTMENTS_LIST, RequestArgs.create().path("connection_id", connectionId).query(query), Types.of(Appointment.class), Types.of(AppointmentList.class), options);
+  }
+
+  /**
+   * List busy times
+   * <p>
+   * The times the connection's calendar is taken from day <code>from</code> to day <code>to</code>, without patient data: start, end, column and an id per interval. <code>complete: false</code> means the answer may miss busy times (<code>reason</code> says why): treat a time without an interval as unknown then, not as free. A connection whose system has no <code>appointment.busy</code> but lists appointments over a range of days is read with <code>appointment.list</code>, reduced in the cloud the same way.
+   * <p>
+   * <code>GET /v1/connect/connections/{connection_id}/appointment-busy</code>, scope <code>connect.read</code>, verb <code>appointment.busy</code>, metered as <code>connect.read</code>.
+   */
+  public CompletableFuture<Page<BusyInterval, BusyIntervalList>> busy(String connectionId, AppointmentsBusyQuery query) {
+    return busy(connectionId, query, RequestOptions.none());
+  }
+
+  /**
+   * List busy times
+   * <p>
+   * The times the connection's calendar is taken from day <code>from</code> to day <code>to</code>, without patient data: start, end, column and an id per interval. <code>complete: false</code> means the answer may miss busy times (<code>reason</code> says why): treat a time without an interval as unknown then, not as free. A connection whose system has no <code>appointment.busy</code> but lists appointments over a range of days is read with <code>appointment.list</code>, reduced in the cloud the same way.
+   * <p>
+   * <code>GET /v1/connect/connections/{connection_id}/appointment-busy</code>, scope <code>connect.read</code>, verb <code>appointment.busy</code>, metered as <code>connect.read</code>.
+   */
+  public CompletableFuture<Page<BusyInterval, BusyIntervalList>> busy(String connectionId, AppointmentsBusyQuery query, RequestOptions options) {
+    return core.requestPage(Operations.CONNECT_APPOINTMENTS_BUSY, RequestArgs.create().path("connection_id", connectionId).query(query), Types.of(BusyInterval.class), Types.of(BusyIntervalList.class), options);
   }
 
   /**

@@ -70,7 +70,7 @@ class ParityTest {
       helpers.add(h.get("java").asText());
     }
     assertEquals(ids, listed);
-    assertEquals(94, specOperationIds("connect-openapi.json").size());
+    assertEquals(100, specOperationIds("connect-openapi.json").size());
     MediSyncClient client = new MediSyncClient("msk_test_parity");
     assertEquals(expected, publicMethods(client));
     assertEquals(expected, publicMethods(client.async()));

@@ -13,6 +13,12 @@ public final class AppointmentsListSlotsQuery extends JsonModel {
   @JsonProperty("to")
   private @Nullable String to;
 
+  @JsonProperty("practitioner")
+  private @Nullable String practitioner;
+
+  @JsonProperty("appointment_type")
+  private @Nullable String appointmentType;
+
   @JsonProperty("cursor")
   private @Nullable String cursor;
 
@@ -51,6 +57,38 @@ public final class AppointmentsListSlotsQuery extends JsonModel {
   /** Sets <code>to</code> and returns this object. */
   public AppointmentsListSlotsQuery to(@Nullable String value) {
     setTo(value);
+    return this;
+  }
+
+  /** Only the slots of this calendar or column, the <code>practitioner</code> value of a slot. A system that names no column (MEDICAL OFFICE) has no slot with a <code>practitioner</code>. */
+  public @Nullable String getPractitioner() {
+    return practitioner;
+  }
+
+  /** Sets <code>practitioner</code>. */
+  public void setPractitioner(@Nullable String value) {
+    this.practitioner = value;
+  }
+
+  /** Sets <code>practitioner</code> and returns this object. */
+  public AppointmentsListSlotsQuery practitioner(@Nullable String value) {
+    setPractitioner(value);
+    return this;
+  }
+
+  /** Only the slots that take this appointment type, one value of <code>appointment_types</code> of a slot (DURIA: the id of the Terminart; ISiK: the code of the service type). A slot without <code>appointment_types</code> is kept: its system does not type its slots. */
+  public @Nullable String getAppointmentType() {
+    return appointmentType;
+  }
+
+  /** Sets <code>appointment_type</code>. */
+  public void setAppointmentType(@Nullable String value) {
+    this.appointmentType = value;
+  }
+
+  /** Sets <code>appointment_type</code> and returns this object. */
+  public AppointmentsListSlotsQuery appointmentType(@Nullable String value) {
+    setAppointmentType(value);
     return this;
   }
 

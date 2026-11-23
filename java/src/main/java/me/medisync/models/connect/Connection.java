@@ -38,6 +38,9 @@ public final class Connection extends JsonModel {
   @JsonProperty("settings")
   private @Nullable Map<String, Object> settings;
 
+  @JsonProperty("auth")
+  private @Nullable ConnectionAuth auth;
+
   @JsonProperty("created_at")
   private @Nullable String createdAt;
 
@@ -193,7 +196,7 @@ public final class Connection extends JsonModel {
     return this;
   }
 
-  /** Non-secret settings. Credentials stay in the hub and never pass this API. */
+  /** Non-secret settings. Credentials of a hub connection stay in the hub and never pass this API. A cloud connection's credentials go in once, write only (<code>connections.oauthStart</code>, <code>connections.setSecrets</code>), and are never answered. <code>calendar_map</code> (a <code>CalendarMap</code>) says which member each calendar of the connection belongs to; the cloud keeps it, the hub never sees it. */
   public @Nullable Map<String, Object> getSettings() {
     return settings;
   }
@@ -206,6 +209,22 @@ public final class Connection extends JsonModel {
   /** Sets <code>settings</code> and returns this object. */
   public Connection settings(@Nullable Map<String, Object> value) {
     setSettings(value);
+    return this;
+  }
+
+  /** The <code>auth</code> field. */
+  public @Nullable ConnectionAuth getAuth() {
+    return auth;
+  }
+
+  /** Sets <code>auth</code>. */
+  public void setAuth(@Nullable ConnectionAuth value) {
+    this.auth = value;
+  }
+
+  /** Sets <code>auth</code> and returns this object. */
+  public Connection auth(@Nullable ConnectionAuth value) {
+    setAuth(value);
     return this;
   }
 

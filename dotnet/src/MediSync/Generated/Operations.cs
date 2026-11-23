@@ -326,6 +326,38 @@ public static class Operations
         X = new Dictionary<string, string> { ["scope"] = "connect.setup", ["metered"] = "connect.read", ["usage"] = "setup" },
     };
 
+    /// <summary><c>POST /v1/connect/connections/{connection_id}/oauth/start</c></summary>
+    public static readonly OperationMeta ConnectConnectionsOauthStart = new("connect.connections.oauthStart", "connect", "connections.oauthStart", "POST", "/v1/connect/connections/{connection_id}/oauth/start")
+    {
+        Body = "json",
+        Response = "json",
+        Idempotency = "optional",
+        X = new Dictionary<string, string> { ["scope"] = "connect.setup", ["phi"] = "true", ["usage"] = "setup" },
+    };
+
+    /// <summary><c>PUT /v1/connect/connections/{connection_id}/secrets</c></summary>
+    public static readonly OperationMeta ConnectConnectionsSetSecrets = new("connect.connections.setSecrets", "connect", "connections.setSecrets", "PUT", "/v1/connect/connections/{connection_id}/secrets")
+    {
+        Body = "json",
+        Response = "json",
+        X = new Dictionary<string, string> { ["scope"] = "connect.setup", ["phi"] = "true", ["usage"] = "setup" },
+    };
+
+    /// <summary><c>DELETE /v1/connect/connections/{connection_id}/secrets</c></summary>
+    public static readonly OperationMeta ConnectConnectionsDeleteSecrets = new("connect.connections.deleteSecrets", "connect", "connections.deleteSecrets", "DELETE", "/v1/connect/connections/{connection_id}/secrets")
+    {
+        Body = "json",
+        Response = "json",
+        X = new Dictionary<string, string> { ["scope"] = "connect.setup", ["usage"] = "setup" },
+    };
+
+    /// <summary><c>GET /v1/connect/connections/{connection_id}/inbound</c></summary>
+    public static readonly OperationMeta ConnectConnectionsGetInbound = new("connect.connections.getInbound", "connect", "connections.getInbound", "GET", "/v1/connect/connections/{connection_id}/inbound")
+    {
+        Response = "json",
+        X = new Dictionary<string, string> { ["scope"] = "connect.setup", ["phi"] = "true", ["usage"] = "setup" },
+    };
+
     /// <summary><c>GET /v1/connect/connections/{connection_id}/health</c></summary>
     public static readonly OperationMeta ConnectConnectionsGetHealth = new("connect.connections.getHealth", "connect", "connections.getHealth", "GET", "/v1/connect/connections/{connection_id}/health")
     {
@@ -674,6 +706,15 @@ public static class Operations
         X = new Dictionary<string, string> { ["scope"] = "connect.read", ["verb"] = "appointment.list", ["phi"] = "true", ["metered"] = "connect.read", ["usage"] = "read" },
     };
 
+    /// <summary><c>GET /v1/connect/sites/{site_id}/busy</c></summary>
+    public static readonly OperationMeta ConnectAppointmentsBusySite = new("connect.appointments.busySite", "connect", "appointments.busySite", "GET", "/v1/connect/sites/{site_id}/busy")
+    {
+        Query = true,
+        Response = "json",
+        Paginated = true,
+        X = new Dictionary<string, string> { ["scope"] = "connect.read", ["verb"] = "appointment.busy", ["phi"] = "false", ["metered"] = "connect.read", ["usage"] = "read" },
+    };
+
     /// <summary><c>POST /v1/connect/sites/{site_id}/launches</c></summary>
     public static readonly OperationMeta ConnectContextCreateLaunch = new("connect.context.createLaunch", "connect", "context.createLaunch", "POST", "/v1/connect/sites/{site_id}/launches")
     {
@@ -865,6 +906,15 @@ public static class Operations
         X = new Dictionary<string, string> { ["scope"] = "connect.read", ["verb"] = "appointment.list", ["phi"] = "true", ["metered"] = "connect.read", ["usage"] = "read" },
     };
 
+    /// <summary><c>GET /v1/connect/connections/{connection_id}/appointment-busy</c></summary>
+    public static readonly OperationMeta ConnectAppointmentsBusy = new("connect.appointments.busy", "connect", "appointments.busy", "GET", "/v1/connect/connections/{connection_id}/appointment-busy")
+    {
+        Query = true,
+        Response = "json",
+        Paginated = true,
+        X = new Dictionary<string, string> { ["scope"] = "connect.read", ["verb"] = "appointment.busy", ["phi"] = "false", ["metered"] = "connect.read", ["usage"] = "read" },
+    };
+
     /// <summary><c>POST /v1/connect/connections/{connection_id}/plans/appointment-book</c></summary>
     public static readonly OperationMeta ConnectAppointmentsPlanBook = new("connect.appointments.planBook", "connect", "appointments.planBook", "POST", "/v1/connect/connections/{connection_id}/plans/appointment-book")
     {
@@ -979,6 +1029,10 @@ public static class Operations
         ["connect.connections.update"] = ConnectConnectionsUpdate,
         ["connect.connections.delete"] = ConnectConnectionsDelete,
         ["connect.connections.test"] = ConnectConnectionsTest,
+        ["connect.connections.oauthStart"] = ConnectConnectionsOauthStart,
+        ["connect.connections.setSecrets"] = ConnectConnectionsSetSecrets,
+        ["connect.connections.deleteSecrets"] = ConnectConnectionsDeleteSecrets,
+        ["connect.connections.getInbound"] = ConnectConnectionsGetInbound,
         ["connect.connections.getHealth"] = ConnectConnectionsGetHealth,
         ["connect.capabilities.get"] = ConnectCapabilitiesGet,
         ["connect.grants.list"] = ConnectGrantsList,
@@ -1021,6 +1075,7 @@ public static class Operations
         ["connect.context.getPatient"] = ConnectContextGetPatient,
         ["connect.context.listEvents"] = ConnectContextListEvents,
         ["connect.appointments.listSite"] = ConnectAppointmentsListSite,
+        ["connect.appointments.busySite"] = ConnectAppointmentsBusySite,
         ["connect.context.createLaunch"] = ConnectContextCreateLaunch,
         ["connect.patients.search"] = ConnectPatientsSearch,
         ["connect.patients.get"] = ConnectPatientsGet,
@@ -1043,6 +1098,7 @@ public static class Operations
         ["connect.documents.planAttach"] = ConnectDocumentsPlanAttach,
         ["connect.appointments.listSlots"] = ConnectAppointmentsListSlots,
         ["connect.appointments.list"] = ConnectAppointmentsList,
+        ["connect.appointments.busy"] = ConnectAppointmentsBusy,
         ["connect.appointments.planBook"] = ConnectAppointmentsPlanBook,
         ["connect.appointments.planCancel"] = ConnectAppointmentsPlanCancel,
         ["connect.referrals.planOrder"] = ConnectReferralsPlanOrder,

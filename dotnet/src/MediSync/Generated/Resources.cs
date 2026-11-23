@@ -730,6 +730,9 @@ public sealed class ConnectConnectionsService
     /// <summary>
     /// Delete a connection
     /// <para>
+    /// Deletes the connection. 409 <c>conflict</c> while it has open transfers. A cloud connection ends its sign-in first, as <c>connections.deleteSecrets</c> does: Google Calendar and Microsoft 365 delete the calendar "MediSync" that Connect made (never another calendar; a failure there does not stop the delete), then the grant is revoked where the provider has revocation, and every stored value goes with the connection.
+    /// </para>
+    /// <para>
     /// <c>DELETE /v1/connect/connections/{connection_id}</c>, scope <c>connect.setup</c>.
     /// </para>
     /// </summary>
@@ -744,6 +747,54 @@ public sealed class ConnectConnectionsService
     /// </summary>
     public Task<C.ConnectionTestResult> TestAsync(string connectionId, RequestOptions? options = null, CancellationToken cancellationToken = default)
         => _core.RequestAsync<C.ConnectionTestResult>(Operations.ConnectConnectionsTest, new RequestArgs().Path("connection_id", connectionId), options, cancellationToken);
+
+    /// <summary>
+    /// Start the practice's sign-in to a cloud system
+    /// <para>
+    /// For a connection with <c>placement: cloud</c> whose system signs in with OAuth (<c>System.auth.kind: oauth2</c>, for example Google Calendar). Answers Connect's start page of the sign-in: open it in the practice's browser, which it sends on to the provider. The sign-in is bound to the connection, its site, <c>member_id</c> (an active member of the site) and the browser that opened the start page, works once and for 15 minutes. After the provider, the browser comes back to Connect (<c>/oauth/callback</c>), which stores the grant sealed to the cloud runner, tests the connection and sends the browser to <c>return_url</c> with <c>connection_id</c>, <c>status</c> (<c>connected</c> or <c>failed</c>) and <c>reason</c>; without <c>return_url</c> it shows a short page. Connect never answers a token. Start again to connect another account; the new grant replaces the old one. Google Calendar and Microsoft 365: after the sign-in Connect makes the calendar "MediSync" in the practice's account, or takes the one it made before, and sets it as <c>settings.write_calendar</c> (with <c>own_write_calendar: true</c>), so <c>appointment.book</c> writes a neutral "Belegt" event there without a further step. A <c>write_calendar</c> the practice chose itself stays.
+    /// </para>
+    /// <para>
+    /// <c>POST /v1/connect/connections/{connection_id}/oauth/start</c>, scope <c>connect.setup</c>, answers hold patient data.
+    /// </para>
+    /// </summary>
+    public Task<C.ConnectionOAuthStarted> OauthStartAsync(string connectionId, C.ConnectionOAuthStart body, RequestOptions? options = null, CancellationToken cancellationToken = default)
+        => _core.RequestAsync<C.ConnectionOAuthStarted>(Operations.ConnectConnectionsOauthStart, new RequestArgs().Path("connection_id", connectionId).WithBody(body), options, cancellationToken);
+
+    /// <summary>
+    /// Set the copied fields of a cloud connection
+    /// <para>
+    /// For a connection with <c>placement: cloud</c> whose system takes copied values (<c>System.auth.kind: fields</c>: an API key, an iCal feed URL). Write only: Connect seals the values to the cloud runner at once, stores them encrypted with the practice's key and never answers or logs them; the answer names the fields that are set (<c>auth.fields_set</c>). Send every required field; a new call replaces all values (rotation). A <c>url</c> field is an https URL. Connect tests the connection after the change. Hub connections keep their secrets on the hub and answer 400.
+    /// </para>
+    /// <para>
+    /// <c>PUT /v1/connect/connections/{connection_id}/secrets</c>, scope <c>connect.setup</c>, answers hold patient data.
+    /// </para>
+    /// </summary>
+    public Task<C.Connection> SetSecretsAsync(string connectionId, C.ConnectionSecretsSet body, RequestOptions? options = null, CancellationToken cancellationToken = default)
+        => _core.RequestAsync<C.Connection>(Operations.ConnectConnectionsSetSecrets, new RequestArgs().Path("connection_id", connectionId).WithBody(body), options, cancellationToken);
+
+    /// <summary>
+    /// Disconnect a cloud connection's account
+    /// <para>
+    /// Ends the sign-in of a cloud connection: Google Calendar and Microsoft 365 first delete the calendar "MediSync" that Connect made (never another calendar; a failure there does not stop the disconnect), then an OAuth grant is revoked at the provider where the provider has revocation (Google; Microsoft has none, the practice removes MediSync in its account), then every stored value is deleted. The connection stays, with <c>auth.state: missing</c>, until the practice signs in again. <c>connections.delete</c> does the same before it deletes the connection.
+    /// </para>
+    /// <para>
+    /// <c>DELETE /v1/connect/connections/{connection_id}/secrets</c>, scope <c>connect.setup</c>.
+    /// </para>
+    /// </summary>
+    public Task<C.Connection> DeleteSecretsAsync(string connectionId, C.ConnectionSecretsDelete? body = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
+        => _core.RequestAsync<C.Connection>(Operations.ConnectConnectionsDeleteSecrets, new RequestArgs().Path("connection_id", connectionId).WithBody(body), options, cancellationToken);
+
+    /// <summary>
+    /// Get the webhook address of a cloud connection
+    /// <para>
+    /// For a connection with <c>placement: cloud</c> whose system can call Connect when an appointment changes (eTermin, Cal.com). Answers the address the practice pastes into the system's webhook settings. Connect checks every call to it before it uses the call: eTermin signs nothing, so the token in the address is the check; Cal.com signs each call with the webhook secret the practice sets there and in <c>connections.setSecrets</c> (field <c>webhook_secret</c>). A call that passes ends in <c>busy.changed</c> for the days it names; its body is dropped. The address stays the same for the connection. Treat it like a password: anyone who has it can make Connect read the system's busy times again. 422 <c>verb_unsupported</c> with <c>reason: no_webhook</c>: the system sends no webhook calls to Connect (busy times then change with the poll every few minutes). 400 <c>hub_connection</c>: a hub connection.
+    /// </para>
+    /// <para>
+    /// <c>GET /v1/connect/connections/{connection_id}/inbound</c>, scope <c>connect.setup</c>, answers hold patient data.
+    /// </para>
+    /// </summary>
+    public Task<C.ConnectionInbound> GetInboundAsync(string connectionId, RequestOptions? options = null, CancellationToken cancellationToken = default)
+        => _core.RequestAsync<C.ConnectionInbound>(Operations.ConnectConnectionsGetInbound, new RequestArgs().Path("connection_id", connectionId), options, cancellationToken);
 
     /// <summary>
     /// Get connection health and queue counts
@@ -1347,6 +1398,18 @@ public sealed class ConnectAppointmentsService
         => _core.RequestPage<C.Appointment, C.SiteAppointmentList>(Operations.ConnectAppointmentsListSite, new RequestArgs().Path("site_id", siteId).WithQuery(query), options, cancellationToken);
 
     /// <summary>
+    /// Busy times of a site in a date range
+    /// <para>
+    /// The times the calendars of the site are taken, without patient data, for a booking page that must not double-book. Every connection of the site is asked at once (or only <c>connection_id</c>). A connection that runs <c>appointment.busy</c> answers with busy intervals. A connection that runs only <c>appointment.list</c> over a range of days is read with it, and the cloud keeps start, end, column and id of each appointment and drops every other field before it answers. Each interval names its connection, its system and <c>member_id</c> from the connection's <c>calendar_map</c> (<c>null</c>: it counts for the whole practice). <c>sources</c> says per connection whether it answered and whether its answer is complete. <c>complete</c> is <c>true</c> only when every source answered completely. When it is <c>false</c>, a time without a busy interval is not known to be free. A connection that fails does not fail the call while another one answers.
+    /// </para>
+    /// <para>
+    /// <c>GET /v1/connect/sites/{site_id}/busy</c>, scope <c>connect.read</c>, verb <c>appointment.busy</c>, metered as <c>connect.read</c>.
+    /// </para>
+    /// </summary>
+    public PageTask<C.BusyInterval, C.SiteBusyList> BusySiteAsync(string siteId, C.AppointmentsBusySiteQuery query, RequestOptions? options = null, CancellationToken cancellationToken = default)
+        => _core.RequestPage<C.BusyInterval, C.SiteBusyList>(Operations.ConnectAppointmentsBusySite, new RequestArgs().Path("site_id", siteId).WithQuery(query), options, cancellationToken);
+
+    /// <summary>
     /// List free appointment slots
     /// <para>
     /// <c>GET /v1/connect/connections/{connection_id}/appointment-slots</c>, scope <c>connect.read</c>, verb <c>appointment.slots</c>, metered as <c>connect.read</c>.
@@ -1363,6 +1426,18 @@ public sealed class ConnectAppointmentsService
     /// </summary>
     public PageTask<C.Appointment, C.AppointmentList> ListAsync(string connectionId, C.AppointmentsListQuery query, RequestOptions? options = null, CancellationToken cancellationToken = default)
         => _core.RequestPage<C.Appointment, C.AppointmentList>(Operations.ConnectAppointmentsList, new RequestArgs().Path("connection_id", connectionId).WithQuery(query), options, cancellationToken);
+
+    /// <summary>
+    /// List busy times
+    /// <para>
+    /// The times the connection's calendar is taken from day <c>from</c> to day <c>to</c>, without patient data: start, end, column and an id per interval. <c>complete: false</c> means the answer may miss busy times (<c>reason</c> says why): treat a time without an interval as unknown then, not as free. A connection whose system has no <c>appointment.busy</c> but lists appointments over a range of days is read with <c>appointment.list</c>, reduced in the cloud the same way.
+    /// </para>
+    /// <para>
+    /// <c>GET /v1/connect/connections/{connection_id}/appointment-busy</c>, scope <c>connect.read</c>, verb <c>appointment.busy</c>, metered as <c>connect.read</c>.
+    /// </para>
+    /// </summary>
+    public PageTask<C.BusyInterval, C.BusyIntervalList> BusyAsync(string connectionId, C.AppointmentsBusyQuery query, RequestOptions? options = null, CancellationToken cancellationToken = default)
+        => _core.RequestPage<C.BusyInterval, C.BusyIntervalList>(Operations.ConnectAppointmentsBusy, new RequestArgs().Path("connection_id", connectionId).WithQuery(query), options, cancellationToken);
 
     /// <summary>
     /// Plan booking an appointment

@@ -39,7 +39,7 @@ function publicMethods(client: object): string[] {
 test('one method per operationId of both specs, plus the helpers, and no other', () => {
   const ids = [...specOperationIds('openapi.json').map((id) => `platform:${id}`), ...specOperationIds('connect-openapi.json').map((id) => `connect:${id}`)].sort();
   assert.deepEqual(names.operations.map((o) => `${o.api}:${o.operationId}`).sort(), ids);
-  assert.equal(specOperationIds('connect-openapi.json').length, 94);
+  assert.equal(specOperationIds('connect-openapi.json').length, 100);
   const expected = [...names.operations.map((o) => o.typescript), ...names.helpers.map((h) => h.typescript)].sort();
   assert.deepEqual(publicMethods(new MediSync({ apiKey: 'msk_test_parity' })), expected);
   assert.deepEqual(Object.keys(OPERATIONS).sort(), names.operations.map((o) => o.typescript).sort());

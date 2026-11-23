@@ -101,8 +101,8 @@ export interface StreamTranscript {
 }
 
 export interface StreamTranscriptSegment {
-  start?: number;
-  end?: number;
+  start: number;
+  end: number;
 }
 
 export interface StreamTranscriptWord {
@@ -120,7 +120,13 @@ export interface StreamTranscriptSpeaker {
 
 export interface StreamAck {
   type: "ack";
-  /** Seconds of audio the server has read. Transcripts for audio before this point can still arrive after the ack. If the last stretch was silence, none does. */
+  /** Seconds of audio the server has read, with 3 decimals. Transcripts for audio before this point can still arrive after the ack, then `flushed` with the same value. If the last stretch was silence, no transcript comes. */
+  processed_until: number;
+}
+
+export interface StreamFlushed {
+  type: "flushed";
+  /** The same value as in the `ack` of the same `end_utterance`, in seconds. */
   processed_until: number;
 }
 
@@ -174,7 +180,7 @@ export interface StreamError {
 }
 
 /** A message the server sends on the live stream. Switch on `type`. */
-export type StreamServerMessage = StreamSessionReady | StreamTranscript | StreamAck | StreamLanguage | StreamSpeakerRoles | StreamBackpressure | StreamStatus | StreamError;
+export type StreamServerMessage = StreamSessionReady | StreamTranscript | StreamAck | StreamFlushed | StreamLanguage | StreamSpeakerRoles | StreamBackpressure | StreamStatus | StreamError;
 
 /** A text message the client sends on the live stream. */
 export type StreamClientMessage = StreamConfig | StreamTerms | StreamEndUtterance | StreamClose;

@@ -40,7 +40,7 @@ Every method is named after its API operation. The full list is in `conformance/
 | Coding | `coding.icd10gm`, `coding.search`, `coding.catalogue`, `coding.codes.get`, `coding.codes.refine` |
 | Decisions | `decisions.create`, `decisions.createBatch` |
 | Account | `models.list`, `usage.get`, `costs.get`, `specs.openapi`, `specs.asyncapi` |
-| MediSync Connect | `connect.*`, 94 operations, for example `connect.transfers.create` |
+| MediSync Connect | `connect.*`, 100 operations, for example `connect.transfers.create` |
 
 ## Options
 

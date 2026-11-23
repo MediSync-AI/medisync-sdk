@@ -546,6 +546,8 @@ export class ConnectConnections extends APIResource {
   /**
    * Delete a connection
    *
+   * Deletes the connection. 409 `conflict` while it has open transfers. A cloud connection ends its sign-in first, as `connections.deleteSecrets` does: Google Calendar and Microsoft 365 delete the calendar "MediSync" that Connect made (never another calendar; a failure there does not stop the delete), then the grant is revoked where the provider has revocation, and every stored value goes with the connection.
+   *
    * `DELETE /v1/connect/connections/{connection_id}`, scope `connect.setup`.
    */
   delete(connectionId: string, options?: RequestOptions): Promise<void> {
@@ -559,6 +561,50 @@ export class ConnectConnections extends APIResource {
    */
   test(connectionId: string, options?: RequestOptions): Promise<C.ConnectionTestResult> {
     return this._client.request<C.ConnectionTestResult>(OPERATIONS["connect.connections.test"], { path: { connection_id: connectionId } }, options);
+  }
+
+  /**
+   * Start the practice's sign-in to a cloud system
+   *
+   * For a connection with `placement: cloud` whose system signs in with OAuth (`System.auth.kind: oauth2`, for example Google Calendar). Answers Connect's start page of the sign-in: open it in the practice's browser, which it sends on to the provider. The sign-in is bound to the connection, its site, `member_id` (an active member of the site) and the browser that opened the start page, works once and for 15 minutes. After the provider, the browser comes back to Connect (`/oauth/callback`), which stores the grant sealed to the cloud runner, tests the connection and sends the browser to `return_url` with `connection_id`, `status` (`connected` or `failed`) and `reason`; without `return_url` it shows a short page. Connect never answers a token. Start again to connect another account; the new grant replaces the old one. Google Calendar and Microsoft 365: after the sign-in Connect makes the calendar "MediSync" in the practice's account, or takes the one it made before, and sets it as `settings.write_calendar` (with `own_write_calendar: true`), so `appointment.book` writes a neutral "Belegt" event there without a further step. A `write_calendar` the practice chose itself stays.
+   *
+   * `POST /v1/connect/connections/{connection_id}/oauth/start`, scope `connect.setup`, answers hold patient data.
+   */
+  oauthStart(connectionId: string, body: C.ConnectionOAuthStart, options?: RequestOptions): Promise<C.ConnectionOAuthStarted> {
+    return this._client.request<C.ConnectionOAuthStarted>(OPERATIONS["connect.connections.oauthStart"], { path: { connection_id: connectionId }, body }, options);
+  }
+
+  /**
+   * Set the copied fields of a cloud connection
+   *
+   * For a connection with `placement: cloud` whose system takes copied values (`System.auth.kind: fields`: an API key, an iCal feed URL). Write only: Connect seals the values to the cloud runner at once, stores them encrypted with the practice's key and never answers or logs them; the answer names the fields that are set (`auth.fields_set`). Send every required field; a new call replaces all values (rotation). A `url` field is an https URL. Connect tests the connection after the change. Hub connections keep their secrets on the hub and answer 400.
+   *
+   * `PUT /v1/connect/connections/{connection_id}/secrets`, scope `connect.setup`, answers hold patient data.
+   */
+  setSecrets(connectionId: string, body: C.ConnectionSecretsSet, options?: RequestOptions): Promise<C.Connection> {
+    return this._client.request<C.Connection>(OPERATIONS["connect.connections.setSecrets"], { path: { connection_id: connectionId }, body }, options);
+  }
+
+  /**
+   * Disconnect a cloud connection's account
+   *
+   * Ends the sign-in of a cloud connection: Google Calendar and Microsoft 365 first delete the calendar "MediSync" that Connect made (never another calendar; a failure there does not stop the disconnect), then an OAuth grant is revoked at the provider where the provider has revocation (Google; Microsoft has none, the practice removes MediSync in its account), then every stored value is deleted. The connection stays, with `auth.state: missing`, until the practice signs in again. `connections.delete` does the same before it deletes the connection.
+   *
+   * `DELETE /v1/connect/connections/{connection_id}/secrets`, scope `connect.setup`.
+   */
+  deleteSecrets(connectionId: string, body?: C.ConnectionSecretsDelete, options?: RequestOptions): Promise<C.Connection> {
+    return this._client.request<C.Connection>(OPERATIONS["connect.connections.deleteSecrets"], { path: { connection_id: connectionId }, body }, options);
+  }
+
+  /**
+   * Get the webhook address of a cloud connection
+   *
+   * For a connection with `placement: cloud` whose system can call Connect when an appointment changes (eTermin, Cal.com). Answers the address the practice pastes into the system's webhook settings. Connect checks every call to it before it uses the call: eTermin signs nothing, so the token in the address is the check; Cal.com signs each call with the webhook secret the practice sets there and in `connections.setSecrets` (field `webhook_secret`). A call that passes ends in `busy.changed` for the days it names; its body is dropped. The address stays the same for the connection. Treat it like a password: anyone who has it can make Connect read the system's busy times again. 422 `verb_unsupported` with `reason: no_webhook`: the system sends no webhook calls to Connect (busy times then change with the poll every few minutes). 400 `hub_connection`: a hub connection.
+   *
+   * `GET /v1/connect/connections/{connection_id}/inbound`, scope `connect.setup`, answers hold patient data.
+   */
+  getInbound(connectionId: string, options?: RequestOptions): Promise<C.ConnectionInbound> {
+    return this._client.request<C.ConnectionInbound>(OPERATIONS["connect.connections.getInbound"], { path: { connection_id: connectionId } }, options);
   }
 
   /**
@@ -1019,6 +1065,17 @@ export class ConnectAppointments extends APIResource {
   }
 
   /**
+   * Busy times of a site in a date range
+   *
+   * The times the calendars of the site are taken, without patient data, for a booking page that must not double-book. Every connection of the site is asked at once (or only `connection_id`). A connection that runs `appointment.busy` answers with busy intervals. A connection that runs only `appointment.list` over a range of days is read with it, and the cloud keeps start, end, column and id of each appointment and drops every other field before it answers. Each interval names its connection, its system and `member_id` from the connection's `calendar_map` (`null`: it counts for the whole practice). `sources` says per connection whether it answered and whether its answer is complete. `complete` is `true` only when every source answered completely. When it is `false`, a time without a busy interval is not known to be free. A connection that fails does not fail the call while another one answers.
+   *
+   * `GET /v1/connect/sites/{site_id}/busy`, scope `connect.read`, verb `appointment.busy`, metered as `connect.read`.
+   */
+  busySite(siteId: string, query: C.AppointmentsBusySiteQuery, options?: RequestOptions): PagePromise<C.BusyInterval, C.SiteBusyList> {
+    return this._client.requestPage<C.BusyInterval, C.SiteBusyList>(OPERATIONS["connect.appointments.busySite"], { path: { site_id: siteId }, query }, options);
+  }
+
+  /**
    * List free appointment slots
    *
    * `GET /v1/connect/connections/{connection_id}/appointment-slots`, scope `connect.read`, verb `appointment.slots`, metered as `connect.read`.
@@ -1034,6 +1091,17 @@ export class ConnectAppointments extends APIResource {
    */
   list(connectionId: string, query: C.AppointmentsListQuery, options?: RequestOptions): PagePromise<C.Appointment, C.AppointmentList> {
     return this._client.requestPage<C.Appointment, C.AppointmentList>(OPERATIONS["connect.appointments.list"], { path: { connection_id: connectionId }, query }, options);
+  }
+
+  /**
+   * List busy times
+   *
+   * The times the connection's calendar is taken from day `from` to day `to`, without patient data: start, end, column and an id per interval. `complete: false` means the answer may miss busy times (`reason` says why): treat a time without an interval as unknown then, not as free. A connection whose system has no `appointment.busy` but lists appointments over a range of days is read with `appointment.list`, reduced in the cloud the same way.
+   *
+   * `GET /v1/connect/connections/{connection_id}/appointment-busy`, scope `connect.read`, verb `appointment.busy`, metered as `connect.read`.
+   */
+  busy(connectionId: string, query: C.AppointmentsBusyQuery, options?: RequestOptions): PagePromise<C.BusyInterval, C.BusyIntervalList> {
+    return this._client.requestPage<C.BusyInterval, C.BusyIntervalList>(OPERATIONS["connect.appointments.busy"], { path: { connection_id: connectionId }, query }, options);
   }
 
   /**

@@ -331,6 +331,38 @@
     },
     {
       "api": "connect",
+      "operationId": "connections.oauthStart",
+      "typescript": "connect.connections.oauthStart",
+      "python": "connect.connections.oauth_start",
+      "java": "connect.connections.oauthStart",
+      "dotnet": "Connect.Connections.OauthStartAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "connections.setSecrets",
+      "typescript": "connect.connections.setSecrets",
+      "python": "connect.connections.set_secrets",
+      "java": "connect.connections.setSecrets",
+      "dotnet": "Connect.Connections.SetSecretsAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "connections.deleteSecrets",
+      "typescript": "connect.connections.deleteSecrets",
+      "python": "connect.connections.delete_secrets",
+      "java": "connect.connections.deleteSecrets",
+      "dotnet": "Connect.Connections.DeleteSecretsAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "connections.getInbound",
+      "typescript": "connect.connections.getInbound",
+      "python": "connect.connections.get_inbound",
+      "java": "connect.connections.getInbound",
+      "dotnet": "Connect.Connections.GetInboundAsync"
+    },
+    {
+      "api": "connect",
       "operationId": "connections.getHealth",
       "typescript": "connect.connections.getHealth",
       "python": "connect.connections.get_health",
@@ -667,6 +699,14 @@
     },
     {
       "api": "connect",
+      "operationId": "appointments.busySite",
+      "typescript": "connect.appointments.busySite",
+      "python": "connect.appointments.busy_site",
+      "java": "connect.appointments.busySite",
+      "dotnet": "Connect.Appointments.BusySiteAsync"
+    },
+    {
+      "api": "connect",
       "operationId": "context.createLaunch",
       "typescript": "connect.context.createLaunch",
       "python": "connect.context.create_launch",
@@ -840,6 +880,14 @@
       "python": "connect.appointments.list",
       "java": "connect.appointments.list",
       "dotnet": "Connect.Appointments.ListAsync"
+    },
+    {
+      "api": "connect",
+      "operationId": "appointments.busy",
+      "typescript": "connect.appointments.busy",
+      "python": "connect.appointments.busy",
+      "java": "connect.appointments.busy",
+      "dotnet": "Connect.Appointments.BusyAsync"
     },
     {
       "api": "connect",
