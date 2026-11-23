@@ -83,12 +83,13 @@ class LiveStreamError(MediSyncError):
 
 
 class StreamFlushed(BaseModel):
-    """The answer to one `end_utterance`, after every transcript of the audio it flushed.
+    """The answer to one `end_utterance`.
 
-    A segment that failed sent an `error` with code `asr_failed` (not fatal) in place of its
-    transcript. With speaker roles on, a final `speaker_roles` message can still follow. Several
-    `end_utterance` messages get one `flushed` each, in the same order. Servers before 23.11.2026
-    do not send it.
+    The server has finished its work on the audio up to `processed_until`. Audio it dropped under
+    load (`backpressure`) or could not transcribe (`asr_failed` or `language_unsupported`, both not
+    fatal) has no transcript. With speaker roles on, a final `speaker_roles` usually follows; under
+    load it can come earlier, or not at all for a later `end_utterance`. Several `end_utterance`
+    messages get one `flushed` each, in the same order. Servers before 23.11.2026 do not send it.
     """
 
     type: Literal["flushed"] = "flushed"
