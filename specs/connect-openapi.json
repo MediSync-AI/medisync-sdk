@@ -1651,6 +1651,7 @@
 			"delete": {
 				"operationId": "connections.delete",
 				"summary": "Delete a connection",
+				"description": "Deletes the connection. 409 `conflict` while it has open transfers. A cloud connection ends its sign-in first, as `connections.deleteSecrets` does: Google Calendar and Microsoft 365 delete the calendar \"MediSync\" that Connect made (never another calendar; a failure there does not stop the delete), then the grant is revoked where the provider has revocation, and every stored value goes with the connection.",
 				"tags": ["connections"],
 				"parameters": [
 					{
@@ -1774,6 +1775,290 @@
 				"x-medisync-scope": "connect.setup",
 				"x-medisync-usage": "setup",
 				"x-medisync-metered": "connect.read"
+			}
+		},
+		"/v1/connect/connections/{connection_id}/oauth/start": {
+			"post": {
+				"operationId": "connections.oauthStart",
+				"summary": "Start the practice's sign-in to a cloud system",
+				"description": "For a connection with `placement: cloud` whose system signs in with OAuth (`System.auth.kind: oauth2`, for example Google Calendar). Answers Connect's start page of the sign-in: open it in the practice's browser, which it sends on to the provider. The sign-in is bound to the connection, its site, `member_id` (an active member of the site) and the browser that opened the start page, works once and for 15 minutes. After the provider, the browser comes back to Connect (`/oauth/callback`), which stores the grant sealed to the cloud runner, tests the connection and sends the browser to `return_url` with `connection_id`, `status` (`connected` or `failed`) and `reason`; without `return_url` it shows a short page. Connect never answers a token. Start again to connect another account; the new grant replaces the old one. Google Calendar and Microsoft 365: after the sign-in Connect makes the calendar \"MediSync\" in the practice's account, or takes the one it made before, and sets it as `settings.write_calendar` (with `own_write_calendar: true`), so `appointment.book` writes a neutral \"Belegt\" event there without a further step. A `write_calendar` the practice chose itself stays.",
+				"tags": ["connections"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/ConnectionId"
+					},
+					{
+						"$ref": "#/components/parameters/IdempotencyKey"
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ConnectionOAuthStart"
+							},
+							"example": {
+								"member_id": "mem_9Ks3Jd7TyA",
+								"return_url": "https://app.medisync.me/settings/calendars"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectionOAuthStarted"
+								},
+								"example": {
+									"connection_id": "con_Gc4Lk8Wq2Z",
+									"authorize_url": "https://connect.medisync.me/oauth/start?state=example",
+									"expires_at": "2026-11-20T10:15:00Z"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/BadRequest"
+					},
+					"401": {
+						"$ref": "#/components/responses/Unauthenticated"
+					},
+					"403": {
+						"$ref": "#/components/responses/Forbidden"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFound"
+					},
+					"413": {
+						"$ref": "#/components/responses/PayloadTooLarge"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimited"
+					},
+					"500": {
+						"$ref": "#/components/responses/InternalError"
+					},
+					"501": {
+						"$ref": "#/components/responses/NotImplemented"
+					},
+					"502": {
+						"$ref": "#/components/responses/BadGateway"
+					},
+					"503": {
+						"$ref": "#/components/responses/Unavailable"
+					},
+					"504": {
+						"$ref": "#/components/responses/GatewayTimeout"
+					}
+				},
+				"x-medisync-scope": "connect.setup",
+				"x-medisync-usage": "setup",
+				"x-medisync-phi": true
+			}
+		},
+		"/v1/connect/connections/{connection_id}/secrets": {
+			"put": {
+				"operationId": "connections.setSecrets",
+				"summary": "Set the copied fields of a cloud connection",
+				"description": "For a connection with `placement: cloud` whose system takes copied values (`System.auth.kind: fields`: an API key, an iCal feed URL). Write only: Connect seals the values to the cloud runner at once, stores them encrypted with the practice's key and never answers or logs them; the answer names the fields that are set (`auth.fields_set`). Send every required field; a new call replaces all values (rotation). A `url` field is an https URL. Connect tests the connection after the change. Hub connections keep their secrets on the hub and answer 400.",
+				"tags": ["connections"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/ConnectionId"
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ConnectionSecretsSet"
+							},
+							"example": {
+								"fields": {
+									"feed_url": "https://kalender.beispiel-praxis.de/feed/7f3a9c.ics"
+								},
+								"member_id": "mem_9Ks3Jd7TyA"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK. The connection; `auth` shows the state, never a value.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Connection"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/BadRequest"
+					},
+					"401": {
+						"$ref": "#/components/responses/Unauthenticated"
+					},
+					"403": {
+						"$ref": "#/components/responses/Forbidden"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFound"
+					},
+					"413": {
+						"$ref": "#/components/responses/PayloadTooLarge"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimited"
+					},
+					"500": {
+						"$ref": "#/components/responses/InternalError"
+					},
+					"501": {
+						"$ref": "#/components/responses/NotImplemented"
+					},
+					"503": {
+						"$ref": "#/components/responses/Unavailable"
+					},
+					"504": {
+						"$ref": "#/components/responses/GatewayTimeout"
+					}
+				},
+				"x-medisync-scope": "connect.setup",
+				"x-medisync-usage": "setup",
+				"x-medisync-phi": true
+			},
+			"delete": {
+				"operationId": "connections.deleteSecrets",
+				"summary": "Disconnect a cloud connection's account",
+				"description": "Ends the sign-in of a cloud connection: Google Calendar and Microsoft 365 first delete the calendar \"MediSync\" that Connect made (never another calendar; a failure there does not stop the disconnect), then an OAuth grant is revoked at the provider where the provider has revocation (Google; Microsoft has none, the practice removes MediSync in its account), then every stored value is deleted. The connection stays, with `auth.state: missing`, until the practice signs in again. `connections.delete` does the same before it deletes the connection.",
+				"tags": ["connections"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/ConnectionId"
+					}
+				],
+				"requestBody": {
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/ConnectionSecretsDelete"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK. The connection without a sign-in.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Connection"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/BadRequest"
+					},
+					"401": {
+						"$ref": "#/components/responses/Unauthenticated"
+					},
+					"403": {
+						"$ref": "#/components/responses/Forbidden"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFound"
+					},
+					"413": {
+						"$ref": "#/components/responses/PayloadTooLarge"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimited"
+					},
+					"500": {
+						"$ref": "#/components/responses/InternalError"
+					},
+					"501": {
+						"$ref": "#/components/responses/NotImplemented"
+					},
+					"503": {
+						"$ref": "#/components/responses/Unavailable"
+					},
+					"504": {
+						"$ref": "#/components/responses/GatewayTimeout"
+					}
+				},
+				"x-medisync-scope": "connect.setup",
+				"x-medisync-usage": "setup"
+			}
+		},
+		"/v1/connect/connections/{connection_id}/inbound": {
+			"get": {
+				"operationId": "connections.getInbound",
+				"summary": "Get the webhook address of a cloud connection",
+				"description": "For a connection with `placement: cloud` whose system can call Connect when an appointment changes (eTermin, Cal.com). Answers the address the practice pastes into the system's webhook settings. Connect checks every call to it before it uses the call: eTermin signs nothing, so the token in the address is the check; Cal.com signs each call with the webhook secret the practice sets there and in `connections.setSecrets` (field `webhook_secret`). A call that passes ends in `busy.changed` for the days it names; its body is dropped. The address stays the same for the connection. Treat it like a password: anyone who has it can make Connect read the system's busy times again. 422 `verb_unsupported` with `reason: no_webhook`: the system sends no webhook calls to Connect (busy times then change with the poll every few minutes). 400 `hub_connection`: a hub connection.",
+				"tags": ["connections"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/ConnectionId"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/ConnectionInbound"
+								},
+								"example": {
+									"connection_id": "con_Gc4Lk8Wq2Z",
+									"url": "https://connect.medisync.me/inbound/con_Gc4Lk8Wq2Z/Zx8bQ2c0mT5vYk3H9aLp4WnR7sUe1JdG6fKiOyNqBwA"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/BadRequest"
+					},
+					"401": {
+						"$ref": "#/components/responses/Unauthenticated"
+					},
+					"403": {
+						"$ref": "#/components/responses/Forbidden"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFound"
+					},
+					"422": {
+						"$ref": "#/components/responses/Unprocessable"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimited"
+					},
+					"500": {
+						"$ref": "#/components/responses/InternalError"
+					},
+					"501": {
+						"$ref": "#/components/responses/NotImplemented"
+					},
+					"503": {
+						"$ref": "#/components/responses/Unavailable"
+					},
+					"504": {
+						"$ref": "#/components/responses/GatewayTimeout"
+					}
+				},
+				"x-medisync-scope": "connect.setup",
+				"x-medisync-usage": "setup",
+				"x-medisync-phi": true
 			}
 		},
 		"/v1/connect/connections/{connection_id}/health": {
@@ -5443,6 +5728,94 @@
 				"x-medisync-metered": "connect.read"
 			}
 		},
+		"/v1/connect/sites/{site_id}/busy": {
+			"get": {
+				"operationId": "appointments.busySite",
+				"summary": "Busy times of a site in a date range",
+				"description": "The times the calendars of the site are taken, without patient data, for a booking page that must not double-book. Every connection of the site is asked at once (or only `connection_id`). A connection that runs `appointment.busy` answers with busy intervals. A connection that runs only `appointment.list` over a range of days is read with it, and the cloud keeps start, end, column and id of each appointment and drops every other field before it answers. Each interval names its connection, its system and `member_id` from the connection's `calendar_map` (`null`: it counts for the whole practice). `sources` says per connection whether it answered and whether its answer is complete. `complete` is `true` only when every source answered completely. When it is `false`, a time without a busy interval is not known to be free. A connection that fails does not fail the call while another one answers.",
+				"tags": ["appointments"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/SiteId"
+					},
+					{
+						"$ref": "#/components/parameters/BusyFrom"
+					},
+					{
+						"$ref": "#/components/parameters/BusyTo"
+					},
+					{
+						"$ref": "#/components/parameters/BusyMember"
+					},
+					{
+						"name": "connection_id",
+						"in": "query",
+						"required": false,
+						"description": "Ask only this connection of the site.",
+						"schema": {
+							"type": "string"
+						},
+						"example": "con_4Rt8Vb2MnQ"
+					},
+					{
+						"$ref": "#/components/parameters/BusyCursor"
+					},
+					{
+						"$ref": "#/components/parameters/BusyLimit"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/SiteBusyList"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/BadRequest"
+					},
+					"401": {
+						"$ref": "#/components/responses/Unauthenticated"
+					},
+					"403": {
+						"$ref": "#/components/responses/Forbidden"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFound"
+					},
+					"422": {
+						"$ref": "#/components/responses/Unprocessable"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimited"
+					},
+					"500": {
+						"$ref": "#/components/responses/InternalError"
+					},
+					"501": {
+						"$ref": "#/components/responses/NotImplemented"
+					},
+					"502": {
+						"$ref": "#/components/responses/BadGateway"
+					},
+					"503": {
+						"$ref": "#/components/responses/Unavailable"
+					},
+					"504": {
+						"$ref": "#/components/responses/GatewayTimeout"
+					}
+				},
+				"x-medisync-scope": "connect.read",
+				"x-medisync-usage": "read",
+				"x-medisync-verb": "appointment.busy",
+				"x-medisync-phi": false,
+				"x-medisync-metered": "connect.read"
+			}
+		},
 		"/v1/connect/sites/{site_id}/launches": {
 			"post": {
 				"operationId": "context.createLaunch",
@@ -7176,6 +7549,26 @@
 						"$ref": "#/components/parameters/To"
 					},
 					{
+						"name": "practitioner",
+						"in": "query",
+						"required": false,
+						"description": "Only the slots of this calendar or column, the `practitioner` value of a slot. A system that names no column (MEDICAL OFFICE) has no slot with a `practitioner`.",
+						"schema": {
+							"type": "string",
+							"maxLength": 200
+						}
+					},
+					{
+						"name": "appointment_type",
+						"in": "query",
+						"required": false,
+						"description": "Only the slots that take this appointment type, one value of `appointment_types` of a slot (DURIA: the id of the Terminart; ISiK: the code of the service type). A slot without `appointment_types` is kept: its system does not type its slots.",
+						"schema": {
+							"type": "string",
+							"maxLength": 64
+						}
+					},
+					{
 						"$ref": "#/components/parameters/Cursor"
 					},
 					{
@@ -7318,6 +7711,94 @@
 				"x-medisync-usage": "read",
 				"x-medisync-verb": "appointment.list",
 				"x-medisync-phi": true,
+				"x-medisync-metered": "connect.read"
+			}
+		},
+		"/v1/connect/connections/{connection_id}/appointment-busy": {
+			"get": {
+				"operationId": "appointments.busy",
+				"summary": "List busy times",
+				"description": "The times the connection's calendar is taken from day `from` to day `to`, without patient data: start, end, column and an id per interval. `complete: false` means the answer may miss busy times (`reason` says why): treat a time without an interval as unknown then, not as free. A connection whose system has no `appointment.busy` but lists appointments over a range of days is read with `appointment.list`, reduced in the cloud the same way.",
+				"tags": ["appointments"],
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/ConnectionId"
+					},
+					{
+						"$ref": "#/components/parameters/BusyFrom"
+					},
+					{
+						"$ref": "#/components/parameters/BusyTo"
+					},
+					{
+						"name": "practitioner",
+						"in": "query",
+						"required": false,
+						"description": "Only the intervals of this calendar or column, the `practitioner` value of an interval.",
+						"schema": {
+							"type": "string",
+							"maxLength": 200
+						}
+					},
+					{
+						"$ref": "#/components/parameters/BusyMember"
+					},
+					{
+						"$ref": "#/components/parameters/BusyCursor"
+					},
+					{
+						"$ref": "#/components/parameters/BusyLimit"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/BusyIntervalList"
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/BadRequest"
+					},
+					"401": {
+						"$ref": "#/components/responses/Unauthenticated"
+					},
+					"403": {
+						"$ref": "#/components/responses/Forbidden"
+					},
+					"404": {
+						"$ref": "#/components/responses/NotFound"
+					},
+					"422": {
+						"$ref": "#/components/responses/Unprocessable"
+					},
+					"429": {
+						"$ref": "#/components/responses/RateLimited"
+					},
+					"500": {
+						"$ref": "#/components/responses/InternalError"
+					},
+					"501": {
+						"$ref": "#/components/responses/NotImplemented"
+					},
+					"502": {
+						"$ref": "#/components/responses/BadGateway"
+					},
+					"503": {
+						"$ref": "#/components/responses/Unavailable"
+					},
+					"504": {
+						"$ref": "#/components/responses/GatewayTimeout"
+					}
+				},
+				"x-medisync-scope": "connect.read",
+				"x-medisync-usage": "read",
+				"x-medisync-verb": "appointment.busy",
+				"x-medisync-phi": false,
 				"x-medisync-metered": "connect.read"
 			}
 		},
@@ -8267,6 +8748,57 @@
 					"format": "date"
 				}
 			},
+			"BusyFrom": {
+				"name": "from",
+				"in": "query",
+				"required": true,
+				"description": "First day, inclusive (YYYY-MM-DD, German time).",
+				"schema": {
+					"type": "string",
+					"format": "date"
+				}
+			},
+			"BusyTo": {
+				"name": "to",
+				"in": "query",
+				"required": true,
+				"description": "Last day, inclusive (YYYY-MM-DD, German time). At most 91 days after `from`, so one call covers 92 days.",
+				"schema": {
+					"type": "string",
+					"format": "date"
+				}
+			},
+			"BusyMember": {
+				"name": "member_id",
+				"in": "query",
+				"required": false,
+				"description": "The member the read runs for. Busy times carry no patient data, so it is optional. When given, it must be an active member of the site.",
+				"schema": {
+					"type": "string"
+				},
+				"example": "mem_9Ks3Jd7TyA"
+			},
+			"BusyCursor": {
+				"name": "cursor",
+				"in": "query",
+				"required": false,
+				"description": "`next_cursor` of the previous page. Every page is a new read of the systems, so the cursor names the last interval of the page (its `start`, `source_id` and `connection_id`), not a position: the next page starts after that interval. A busy time that goes or comes between two pages moves no other one across the border; one that comes before the cursor is on no page of this walk (read again after `busy.changed`). A cursor of a page before 20.11.2026 (a position) still works in this release.",
+				"schema": {
+					"type": "string"
+				}
+			},
+			"BusyLimit": {
+				"name": "limit",
+				"in": "query",
+				"required": false,
+				"description": "Page size.",
+				"schema": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 1000,
+					"default": 500
+				}
+			},
 			"SlotIdsQuery": {
 				"name": "slot_ids",
 				"in": "query",
@@ -8879,7 +9411,7 @@
 					},
 					"reason": {
 						"type": "string",
-						"description": "Capability reason, for example `system_cannot`, `protocol_cannot`, `not_tested`. With `forbidden`, `member_secret` means the member has not linked their own account of the system in MediSync Connect (DURIA); `admin_assertion_required` means a partner key sent no valid `admin_assertion`; `other_device` means no valid `device_proof`; `not_site_setup` means only the app that set up the site (or MediSync) may change this, and an installed app changes only the members it added; `test_key` means a test key may not change an app that has a live project; `app_not_verified` means MediSync has not verified the app for live sites, `no_app` that the project has no app; `role` means the member's role may not do this; `needs_kontext` means the system answers only for the patient open in it, and the message names the step for that system (T2med needs the patient opened in T2med and MediSync started there, MEDICAL OFFICE needs the patient open in MEDICAL OFFICE or MediSync started from its Krankenblatt, QUINCY needs the MediSync button of the BDT-Anschluss pressed in the patient's Karteikarte); a read for another patient than the open one, or after the export file is older than the connection allows, gets the same reason; the call may succeed later. `no_desk_session` means the system reads for the member only through their MediSync Connect desk (T2med) and the member has no desk session at the site; the call may succeed after the member signs in to the desk."
+						"description": "Capability reason, for example `system_cannot`, `protocol_cannot`, `not_tested`. With `forbidden`, `member_secret` means the member has not linked their own account of the system in MediSync Connect (DURIA); `admin_assertion_required` means a partner key sent no valid `admin_assertion`; `other_device` means no valid `device_proof`; `not_site_setup` means only the app that set up the site (or MediSync) may change this, and an installed app changes only the members it added; `test_key` means a test key may not change an app that has a live project; `app_not_verified` means MediSync has not verified the app for live sites, `no_app` that the project has no app; `role` means the member's role may not do this; `needs_kontext` means the system answers only for the patient open in it, and the message names the step for that system (T2med needs the patient opened in T2med and MediSync started there, MEDICAL OFFICE needs the patient open in MEDICAL OFFICE or MediSync started from its Krankenblatt, QUINCY needs the MediSync button of the BDT-Anschluss pressed in the patient's Karteikarte); a read for another patient than the open one, or after the export file is older than the connection allows, gets the same reason; the call may succeed later. `no_desk_session` means the system reads for the member only through their MediSync Connect desk (T2med) and the member has no desk session at the site; the call may succeed after the member signs in to the desk. `untested_system` (`connections.create`) means the system has not run against the real product yet, so only MediSync's test sites and the pilot sites of that system may connect it."
 					},
 					"alternative": {
 						"$ref": "#/components/schemas/Verb"
@@ -8966,6 +9498,7 @@
 					"document.attach",
 					"appointment.slots",
 					"appointment.list",
+					"appointment.busy",
 					"appointment.book",
 					"appointment.cancel",
 					"referral.order",
@@ -9001,6 +9534,7 @@
 					"entry.in_doubt",
 					"document.received",
 					"connection.capabilities_changed",
+					"busy.changed",
 					"transfer.reopened",
 					"installation.created",
 					"installation.updated",
@@ -9064,7 +9598,8 @@
 					},
 					"kind": {
 						"type": "string",
-						"enum": ["pvs", "kis", "kis_module", "therapy", "billing"]
+						"description": "`calendar`: a calendar or booking service in the cloud (Google Calendar, Microsoft 365), `placement: cloud`.",
+						"enum": ["pvs", "kis", "kis_module", "therapy", "billing", "calendar"]
 					},
 					"protocols": {
 						"type": "array",
@@ -9076,6 +9611,17 @@
 						"type": "string",
 						"description": "`hub`: the adapter runs in the hub inside the practice or hospital network. `cloud`: it runs in Connect.",
 						"enum": ["hub", "cloud"]
+					},
+					"placements": {
+						"type": "array",
+						"description": "Only for a system that runs in either place (`caldav-ics`: a calendar in the practice network or on the internet). `placement` is the default; `connections.create` takes the other with `placement`. `auth` then describes the sign-in of a cloud connection; a hub connection keeps its secrets on the hub.",
+						"items": {
+							"type": "string",
+							"enum": ["hub", "cloud"]
+						}
+					},
+					"auth": {
+						"$ref": "#/components/schemas/SystemAuth"
 					},
 					"proof": {
 						"type": "string",
@@ -9766,8 +10312,11 @@
 					},
 					"settings": {
 						"type": "object",
-						"description": "Non-secret settings. Credentials stay in the hub and never pass this API.",
+						"description": "Non-secret settings. Credentials of a hub connection stay in the hub and never pass this API. A cloud connection's credentials go in once, write only (`connections.oauthStart`, `connections.setSecrets`), and are never answered. `calendar_map` (a `CalendarMap`) says which member each calendar of the connection belongs to; the cloud keeps it, the hub never sees it.",
 						"additionalProperties": true
+					},
+					"auth": {
+						"$ref": "#/components/schemas/ConnectionAuth"
 					},
 					"created_at": {
 						"type": "string",
@@ -9776,6 +10325,178 @@
 					"updated_at": {
 						"type": "string",
 						"format": "date-time"
+					}
+				}
+			},
+			"ConnectionAuth": {
+				"type": "object",
+				"description": "The sign-in of a connection with `placement: cloud`. Only states, never a token or a value. A hub connection has no `auth`.",
+				"required": ["kind", "state"],
+				"properties": {
+					"kind": {
+						"type": "string",
+						"description": "`oauth2`: the practice signs in at the provider (`connections.oauthStart`). `fields`: the practice copies values (`connections.setSecrets`). `none`: nothing to sign in.",
+						"enum": ["oauth2", "fields", "none"]
+					},
+					"state": {
+						"type": "string",
+						"description": "`missing`: no sign-in yet, or disconnected. `ok`: signed in. `broken`: the provider refused the grant (revoked, expired, a scope missing): the practice signs in again; reads answer 502 `connection_failed` with `reason: auth_broken`.",
+						"enum": ["missing", "ok", "broken"]
+					},
+					"reason": {
+						"type": "string",
+						"description": "The code of the last refusal: `auth_broken`, `scope_missing`, `code_refused`, `access_denied`, `disconnected`, `server_changed` (copied fields set for another `settings.url`; set them again)."
+					},
+					"expires_at": {
+						"type": "string",
+						"format": "date-time",
+						"description": "When the current access token ends. Connect refreshes it before."
+					},
+					"scopes": {
+						"type": "array",
+						"description": "The scopes the provider granted.",
+						"items": {
+							"type": "string"
+						}
+					},
+					"fields_set": {
+						"type": "array",
+						"description": "The names of the copied fields that are set.",
+						"items": {
+							"type": "string"
+						}
+					},
+					"updated_at": {
+						"type": "string",
+						"format": "date-time"
+					}
+				}
+			},
+			"SystemAuth": {
+				"type": "object",
+				"description": "How a practice signs in to a cloud system (`placement: cloud`). Hub systems have none.",
+				"required": ["kind"],
+				"properties": {
+					"kind": {
+						"type": "string",
+						"enum": ["oauth2", "fields", "none"]
+					},
+					"provider": {
+						"type": "string",
+						"description": "`oauth2`: the MediSync app at the provider, `google` or `microsoft`."
+					},
+					"scopes": {
+						"type": "array",
+						"description": "`oauth2`: the scopes Connect asks for.",
+						"items": {
+							"type": "string"
+						}
+					},
+					"fields": {
+						"type": "array",
+						"description": "`fields`: the values the practice copies.",
+						"items": {
+							"type": "object",
+							"required": ["name", "kind", "required"],
+							"properties": {
+								"name": {
+									"type": "string",
+									"pattern": "^[a-z0-9_]{1,64}$"
+								},
+								"kind": {
+									"type": "string",
+									"enum": ["text", "url", "password"]
+								},
+								"required": {
+									"type": "boolean"
+								},
+								"label": {
+									"type": "string",
+									"description": "The label the dashboard shows (German)."
+								}
+							}
+						}
+					}
+				}
+			},
+			"ConnectionOAuthStart": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": ["member_id"],
+				"properties": {
+					"member_id": {
+						"type": "string",
+						"description": "The member who signs in for the practice. An active member of the connection's site; a partner key's own member.",
+						"pattern": "^mem_[A-Za-z0-9]{8,32}$"
+					},
+					"return_url": {
+						"type": "string",
+						"description": "Where the browser goes after the sign-in, with `connection_id`, `status` and `reason` added to the query. An https URL on the origin of a MediSync dashboard, no fragment. Without it Connect shows a short page.",
+						"maxLength": 2000
+					}
+				}
+			},
+			"ConnectionOAuthStarted": {
+				"type": "object",
+				"required": ["connection_id", "authorize_url", "expires_at"],
+				"properties": {
+					"connection_id": {
+						"type": "string"
+					},
+					"authorize_url": {
+						"type": "string",
+						"description": "Connect's start page of this sign-in (`/oauth/start`). Open it in the practice's browser: it ties the sign-in to that browser with a cookie and sends it on to the provider's page with PKCE. It opens once; the sign-in finishes only in the browser that opened it."
+					},
+					"expires_at": {
+						"type": "string",
+						"format": "date-time",
+						"description": "The sign-in works until then (15 minutes)."
+					}
+				}
+			},
+			"ConnectionInbound": {
+				"type": "object",
+				"required": ["connection_id", "url"],
+				"properties": {
+					"connection_id": {
+						"type": "string"
+					},
+					"url": {
+						"type": "string",
+						"description": "The webhook address for the system's settings. It holds a token; show it to the practice's admin only."
+					}
+				}
+			},
+			"ConnectionSecretsSet": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": ["fields"],
+				"properties": {
+					"fields": {
+						"type": "object",
+						"description": "The values by field name (`System.auth.fields`). Every required field; at most 16; each up to 4096 characters.",
+						"maxProperties": 16,
+						"additionalProperties": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 4096
+						}
+					},
+					"member_id": {
+						"type": "string",
+						"description": "The member who sets them, for the audit log.",
+						"pattern": "^mem_[A-Za-z0-9]{8,32}$"
+					}
+				}
+			},
+			"ConnectionSecretsDelete": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"member_id": {
+						"type": "string",
+						"description": "The member who disconnects, for the audit log.",
+						"pattern": "^mem_[A-Za-z0-9]{8,32}$"
 					}
 				}
 			},
@@ -9944,6 +10665,11 @@
 					"settings": {
 						"type": "object",
 						"additionalProperties": true
+					},
+					"placement": {
+						"type": "string",
+						"description": "Only for a system with `placements`: where the connection runs. Default: the system's `placement`. Another placement than the system's answers 400 (`param: placement`).",
+						"enum": ["hub", "cloud"]
 					}
 				}
 			},
@@ -9961,6 +10687,17 @@
 					"settings": {
 						"type": "object",
 						"additionalProperties": true
+					},
+					"calendar_map": {
+						"description": "Sets `settings.calendar_map` alone; the other settings stay. `null` removes it. A member id must name a member of the connection's site.",
+						"oneOf": [
+							{
+								"$ref": "#/components/schemas/CalendarMap"
+							},
+							{
+								"type": "null"
+							}
+						]
 					}
 				}
 			},
@@ -12167,10 +12904,26 @@
 						"$ref": "#/components/schemas/PatientRef"
 					},
 					"slot_id": {
-						"type": "string"
+						"type": "string",
+						"description": "A slot of `appointments.listSlots`. A calendar connection (`google-calendar`, `microsoft-365`, `caldav-ics`) takes the time of the booking instead: `<start>/<end>`, two RFC 3339 times in UTC (`2026-11-23T08:00:00Z/2026-11-23T08:30:00Z`), at most one day. `caldav-ics` also takes its older form `cal-busy:<start>:<minutes>`."
 					},
 					"reason": {
 						"type": "string"
+					},
+					"source": {
+						"type": "object",
+						"required": ["app"],
+						"properties": {
+							"app": {
+								"type": "string",
+								"description": "Calling app, for example `scribe`."
+							},
+							"external_id": {
+								"type": "string",
+								"description": "The caller's own id of the booking, at most 200 characters."
+							}
+						},
+						"description": "The calling app and its id of the booking. A calendar connection needs `external_id`: it keys the neutral \"Belegt\" event by it, so a repeat or a moved booking writes the same event and `appointments.planCancel` with the same id as `appointment_id` deletes it. Without `source`, the document names the calling app only."
 					}
 				}
 			},
@@ -12767,6 +13520,7 @@
 					},
 					"data": {
 						"type": "object",
+						"description": "Codes and ids only. `busy.changed`: `connection_id`, and `from` and `to`, the days (YYYY-MM-DD, German time, inclusive) in which busy times of the connection changed. Read `appointments.busySite` for those days again. A hub sends it when its system reports a change; for a cloud connection Connect polls the system every five minutes and takes its webhook calls (`connections.getInbound`).",
 						"additionalProperties": true
 					}
 				}
@@ -12793,7 +13547,7 @@
 					},
 					"source": {
 						"type": "string",
-						"enum": ["gdt", "deep_link", "hl7_adt", "smart_launch"]
+						"enum": ["gdt", "deep_link", "hl7_adt", "smart_launch", "fhir_subscription", "vdds_media"]
 					},
 					"received_at": {
 						"type": "string",
@@ -13461,6 +14215,13 @@
 					"status": {
 						"type": "string",
 						"enum": ["free", "busy"]
+					},
+					"appointment_types": {
+						"type": "array",
+						"description": "The appointment types this slot takes, where the system types its slots (DURIA the Terminart id, ISiK the service type code).",
+						"items": {
+							"type": "string"
+						}
 					}
 				}
 			},
@@ -13554,6 +14315,56 @@
 					},
 					"system_id": {
 						"description": "The system of that connection. Set in `appointments.listSite`.",
+						"type": "string"
+					}
+				}
+			},
+			"BusyInterval": {
+				"type": "object",
+				"description": "A time a calendar is taken. No patient, no title, no reason. The cloud always sends `practitioner`, `null` where the system names no column.",
+				"required": ["start", "end", "source_id"],
+				"properties": {
+					"start": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"end": {
+						"type": "string",
+						"format": "date-time",
+						"description": "The end, not included."
+					},
+					"practitioner": {
+						"description": "The calendar, column or resource the time is taken in, as the system names it: the DURIA column, HL7 AIG, AIL, AIP or AIS-3.1, the ISiK HealthcareService or Practitioner reference. `null` when the system names none (MEDICAL OFFICE syncs one Terminzone per connection). The key of `calendar_map`.",
+						"oneOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"source_id": {
+						"type": "string",
+						"description": "The id of the busy time on this connection, stable while it exists. Where the system has an appointment id, it is the `id` that `appointment.list` gives the same appointment. Keep copies by `connection_id` and `source_id`."
+					},
+					"member_id": {
+						"description": "The site member this time blocks, from the connection's `calendar_map`. `null`: it blocks the whole practice (no entry for its `practitioner` and no `*` entry, or the entry `practice`). Set by the cloud.",
+						"oneOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"connection_id": {
+						"description": "The connection the interval came from. Set in `appointments.busySite`.",
+						"type": "string"
+					},
+					"system_id": {
+						"description": "The system of that connection. Set in `appointments.busySite`.",
 						"type": "string"
 					}
 				}
@@ -14563,6 +15374,138 @@
 					"next_cursor": {
 						"$ref": "#/components/schemas/Cursor"
 					}
+				}
+			},
+			"BusyIntervalList": {
+				"type": "object",
+				"required": ["data", "next_cursor", "complete"],
+				"properties": {
+					"simulated": {
+						"type": "boolean",
+						"description": "Present and true when the simulated hub of a test site gave this answer. No real system was reached."
+					},
+					"data": {
+						"type": "array",
+						"description": "By `start`, then `source_id`.",
+						"items": {
+							"$ref": "#/components/schemas/BusyInterval"
+						}
+					},
+					"next_cursor": {
+						"$ref": "#/components/schemas/Cursor"
+					},
+					"complete": {
+						"type": "boolean",
+						"description": "`true`: every busy time of the range is in the answer (over all pages). `false`: busy times may be missing, `reason` says why. Treat a time without an interval as unknown then, not as free."
+					},
+					"reason": {
+						"type": "string",
+						"description": "Only with `complete: false`. `not_synced`: the system has not synced its calendar with the hub lately (MEDICAL OFFICE: no Abgleich for 15 minutes, or since the hub started). `feed_only`: the hub knows only the appointments whose messages it received (HL7 KIS). `cut`: more busy times than one answer holds. `past_days`: the range starts before today and the system syncs from today on (hubs before 20.11.2026 only: a past day cannot be booked, so it no longer makes an answer incomplete). `recurring`: a recurring event the hub does not expand. `first_pages_only`: the system had more pages than the hub reads (ISiK). `via_list`: read with `appointment.list` (a hub before `appointment.busy`), which cannot say whether its copy is complete. `unreadable`: an appointment or busy time of the system has no readable times or id (CalDAV and iCal feeds, eTermin, Cal.com, ISiK), or Connect dropped a busy time of the answer it could not read (a `source_id` over 200 characters). New codes may appear."
+					},
+					"synced_at": {
+						"description": "When the system last synced its calendar with the hub, where the hub knows it (MEDICAL OFFICE's last Abgleich, the last SIU message of an HL7 KIS).",
+						"oneOf": [
+							{
+								"type": "string",
+								"format": "date-time"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				}
+			},
+			"SiteBusyList": {
+				"type": "object",
+				"required": ["data", "next_cursor", "complete", "sources"],
+				"properties": {
+					"simulated": {
+						"type": "boolean",
+						"description": "Present and true when the simulated hub of a test site gave this answer. No real system was reached."
+					},
+					"data": {
+						"type": "array",
+						"description": "The intervals of every source, by `start`, then `source_id`, then `connection_id`. One page holds each interval once.",
+						"items": {
+							"$ref": "#/components/schemas/BusyInterval"
+						}
+					},
+					"next_cursor": {
+						"$ref": "#/components/schemas/Cursor"
+					},
+					"complete": {
+						"type": "boolean",
+						"description": "`true` only when every source is `ok` and complete. A caller that knows a system's calendar is not in use (a practice that books only in MediSync) may decide per source from `sources`."
+					},
+					"sources": {
+						"type": "array",
+						"description": "One entry per connection of the site that was asked or skipped, in the order of the connections.",
+						"items": {
+							"$ref": "#/components/schemas/BusySource"
+						}
+					}
+				}
+			},
+			"BusySource": {
+				"type": "object",
+				"required": ["connection_id", "system_id", "status", "complete", "count"],
+				"properties": {
+					"connection_id": {
+						"type": "string"
+					},
+					"system_id": {
+						"type": "string"
+					},
+					"status": {
+						"type": "string",
+						"enum": ["ok", "unsupported", "failed"],
+						"description": "`ok`: the connection answered, `count` intervals are in `data` (before paging). `unsupported`: Connect cannot read busy times of this system (`reason`: the capability reason, or `needs_patient_id` for a system that lists appointments per patient only). A verb this key may not call at this site because it is not proven on the system yet (`verb_unverified` on one connection) is `unsupported` with `reason: not_tested` here: no source, not a failed one. So is a cloud connection whose sign-in never finished or was removed (`reason: not_signed_in`). One that signed in and broke later is `failed`. `failed`: the read failed, `reason` names the error code (`agent_offline`, `connection_failed`, ...)."
+					},
+					"via": {
+						"type": "string",
+						"enum": ["busy", "list"],
+						"description": "`busy`: read with `appointment.busy`. `list`: read with `appointment.list` and reduced in the cloud (a hub before `appointment.busy`)."
+					},
+					"complete": {
+						"type": "boolean",
+						"description": "`true` when the source answered and its answer is complete. Always `false` for `unsupported` and `failed`."
+					},
+					"reason": {
+						"type": "string",
+						"description": "Why the source is not `ok`, or why an `ok` source is not complete (the codes of `BusyIntervalList.reason`)."
+					},
+					"synced_at": {
+						"oneOf": [
+							{
+								"type": "string",
+								"format": "date-time"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"count": {
+						"type": "integer"
+					}
+				}
+			},
+			"CalendarMap": {
+				"type": "object",
+				"description": "Which site member each calendar or column of a connection belongs to, for `appointments.busySite`. The key is the `practitioner` value of a busy interval, or `*` for every interval whose `practitioner` is `null` or has no key of its own. The value is a member id of the site, or `practice` when the calendar blocks everyone. An interval without an entry blocks the whole practice: that is the safe side. A member who is no longer active counts as `practice`.",
+				"maxProperties": 200,
+				"propertyNames": {
+					"minLength": 1,
+					"maxLength": 200
+				},
+				"additionalProperties": {
+					"type": "string",
+					"pattern": "^(mem_[A-Za-z0-9]{1,64}|practice)$"
+				},
+				"example": {
+					"*": "practice",
+					"Sprechstunde Dr. Muster": "mem_9Ks3Jd7TyA"
 				}
 			},
 			"BillingCaseList": {

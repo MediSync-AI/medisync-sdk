@@ -1,18 +1,18 @@
 {
   "ref": "origin/main",
-  "commit": "8b7f41c0746ee00ba31005c9c7b7ed1f72ad85c1",
+  "commit": "ba0aa11aff4e5153e38f0735746aba58e1bbb90b",
   "files": {
     "openapi.json": {
       "path": "apps/docs/specs/openapi.json",
-      "sha256": "f7217dc3ef803fc187f707f3d76350db8c2e6f328e6645b0b9695397e665d1f9"
+      "sha256": "aadc44deab25881add555721cbcf6fe193fcf0dc5191dfe72c9778abcb9b4470"
     },
     "connect-openapi.json": {
       "path": "apps/docs/specs/connect-openapi.json",
-      "sha256": "2cac371b37f1f911bf08bef92071bfbcf543b58ef720d4398530ca2605bd5beb"
+      "sha256": "7b1c3abcd99f58d401bfdd7036f21c94292bf21957be3bf0206403ce22ea4670"
     },
     "asyncapi.yaml": {
       "path": "apps/docs/specs/asyncapi.yaml",
-      "sha256": "53a9cb47bcefaad24a55d64a0ad6309ce5fb08ca752fd06da06e53d11e9ef4f9"
+      "sha256": "922d2d4a636cdc4deaa23c752066b36d523f161e507563a1c5b66acd40c42645"
     }
   }
 }
