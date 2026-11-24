@@ -1,6 +1,6 @@
 {
   "name": "medisync",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "TypeScript and JavaScript SDK for the MediSync API: speech, notes, ICD-10-GM coding, decisions and MediSync Connect",
   "license": "Apache-2.0",
   "homepage": "https://docs.medisync.me",

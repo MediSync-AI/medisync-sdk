@@ -110,7 +110,7 @@ public final class Event extends JsonModel {
     return this;
   }
 
-  /** The <code>data</code> field. */
+  /** Codes and ids only. <code>busy.changed</code>: <code>connection_id</code>, and <code>from</code> and <code>to</code>, the days (YYYY-MM-DD, German time, inclusive) in which busy times of the connection changed. Read <code>appointments.busySite</code> for those days again. A hub sends it when its system reports a change; for a cloud connection Connect polls the system every five minutes and takes its webhook calls (<code>connections.getInbound</code>). */
   public Map<String, Object> getData() {
     return data;
   }

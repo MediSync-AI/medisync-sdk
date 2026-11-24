@@ -17,6 +17,9 @@ public final class ConnectionUpdate extends JsonModel {
   @JsonProperty("settings")
   private @Nullable Map<String, Object> settings;
 
+  @JsonProperty("calendar_map")
+  private @Nullable Map<String, String> calendarMap;
+
   /** An empty object. */
   public ConnectionUpdate() {}
 
@@ -65,6 +68,23 @@ public final class ConnectionUpdate extends JsonModel {
   /** Sets <code>settings</code> and returns this object. */
   public ConnectionUpdate settings(@Nullable Map<String, Object> value) {
     setSettings(value);
+    return this;
+  }
+
+  /** Sets <code>settings.calendar_map</code> alone; the other settings stay. <code>null</code> removes it. A member id must name a member of the connection's site. */
+  public @Nullable Map<String, String> getCalendarMap() {
+    return calendarMap;
+  }
+
+  /** Sets <code>calendar_map</code>. Null sends an explicit null. */
+  public void setCalendarMap(@Nullable Map<String, String> value) {
+    this.calendarMap = value;
+    explicitNull("calendar_map", value == null);
+  }
+
+  /** Sets <code>calendar_map</code> and returns this object. */
+  public ConnectionUpdate calendarMap(@Nullable Map<String, String> value) {
+    setCalendarMap(value);
     return this;
   }
 }

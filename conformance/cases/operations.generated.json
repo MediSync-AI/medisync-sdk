@@ -1002,6 +1002,105 @@
       }
     },
     {
+      "name": "operation connect.connections.oauthStart",
+      "call": {
+        "method": "connect.connections.oauthStart",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {
+            "member_id": "member_id_sample"
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/v1/connect/connections/connection_id_1/oauth/start",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.connections.setSecrets",
+      "call": {
+        "method": "connect.connections.setSecrets",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {
+            "fields": {}
+          }
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "PUT",
+            "path": "/v1/connect/connections/connection_id_1/secrets",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.connections.deleteSecrets",
+      "call": {
+        "method": "connect.connections.deleteSecrets",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "body": {}
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "DELETE",
+            "path": "/v1/connect/connections/connection_id_1/secrets",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.connections.getInbound",
+      "call": {
+        "method": "connect.connections.getInbound",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ]
+        }
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/inbound",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
       "name": "operation connect.connections.getHealth",
       "call": {
         "method": "connect.connections.getHealth",
@@ -2070,6 +2169,34 @@
       }
     },
     {
+      "name": "operation connect.appointments.busySite",
+      "call": {
+        "method": "connect.appointments.busySite",
+        "args": {
+          "path": [
+            "site_id_1"
+          ],
+          "query": {
+            "from": "2026-11-16",
+            "to": "2026-11-16"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/sites/site_id_1/busy",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
       "name": "operation connect.context.createLaunch",
       "call": {
         "method": "connect.context.createLaunch",
@@ -2708,6 +2835,34 @@
           {
             "method": "GET",
             "path": "/v1/connect/connections/connection_id_1/appointments",
+            "problems": []
+          }
+        ],
+        "result": {
+          "notNull": true
+        }
+      }
+    },
+    {
+      "name": "operation connect.appointments.busy",
+      "call": {
+        "method": "connect.appointments.busy",
+        "args": {
+          "path": [
+            "connection_id_1"
+          ],
+          "query": {
+            "from": "2026-11-16",
+            "to": "2026-11-16"
+          }
+        },
+        "mode": "page"
+      },
+      "expect": {
+        "requests": [
+          {
+            "method": "GET",
+            "path": "/v1/connect/connections/connection_id_1/appointment-busy",
             "problems": []
           }
         ],

@@ -23,6 +23,7 @@ from ._generated.live_types import (
     StreamAck,
     StreamBackpressure,
     StreamError,
+    StreamFlushed,
     StreamLanguage,
     StreamSessionReady,
     StreamSpeakerRoles,
@@ -80,21 +81,6 @@ class LiveStreamError(MediSyncError):
         """The WebSocket close code, when the socket closed."""
         self.status = status
         """The HTTP status of a refused handshake."""
-
-
-class StreamFlushed(BaseModel):
-    """The answer to one `end_utterance`.
-
-    The server has finished its work on the audio up to `processed_until`. Audio it dropped under
-    load (`backpressure`) or could not transcribe (`asr_failed` or `language_unsupported`, both not
-    fatal) has no transcript. With speaker roles on, a final `speaker_roles` usually follows; under
-    load it can come earlier, or not at all for a later `end_utterance`. Several `end_utterance`
-    messages get one `flushed` each, in the same order. Servers before 23.11.2026 do not send it.
-    """
-
-    type: Literal["flushed"] = "flushed"
-    processed_until: float
-    """The same value as the `ack` of the same `end_utterance`: seconds of audio the server had read."""
 
 
 class StreamReconnecting(BaseModel):

@@ -33,7 +33,7 @@ public final class StreamAck extends JsonModel implements StreamEvent {
     return this;
   }
 
-  /** Seconds of audio the server has read. Transcripts for audio before this point can still arrive after the ack. If the last stretch was silence, none does. */
+  /** Seconds of audio the server has read, with 3 decimals. Transcripts for audio before this point can still arrive after the ack, then <code>flushed</code> with the same value. If the last stretch was silence, no transcript comes. */
   public Double getProcessedUntil() {
     return processedUntil;
   }

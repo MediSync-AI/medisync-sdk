@@ -2,6 +2,7 @@
 package me.medisync.models.connect;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 import me.medisync.core.JsonModel;
 import org.jspecify.annotations.Nullable;
 
@@ -21,6 +22,9 @@ public final class AppointmentSlot extends JsonModel {
 
   @JsonProperty("status")
   private @Nullable String status;
+
+  @JsonProperty("appointment_types")
+  private @Nullable List<String> appointmentTypes;
 
   /** An empty object. */
   public AppointmentSlot() {}
@@ -103,6 +107,22 @@ public final class AppointmentSlot extends JsonModel {
   /** Sets <code>status</code> and returns this object. */
   public AppointmentSlot status(String value) {
     setStatus(value);
+    return this;
+  }
+
+  /** The appointment types this slot takes, where the system types its slots (DURIA the Terminart id, ISiK the service type code). */
+  public @Nullable List<String> getAppointmentTypes() {
+    return appointmentTypes;
+  }
+
+  /** Sets <code>appointment_types</code>. */
+  public void setAppointmentTypes(@Nullable List<String> value) {
+    this.appointmentTypes = value;
+  }
+
+  /** Sets <code>appointment_types</code> and returns this object. */
+  public AppointmentSlot appointmentTypes(@Nullable List<String> value) {
+    setAppointmentTypes(value);
     return this;
   }
 }

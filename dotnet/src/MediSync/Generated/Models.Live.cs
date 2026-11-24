@@ -339,11 +339,11 @@ public sealed class StreamTranscriptSegment : JsonModel
 {
     /// <summary>The <c>start</c> field.</summary>
     [JsonPropertyName("start")]
-    public double? Start { get; set; }
+    public double Start { get; set; }
 
     /// <summary>The <c>end</c> field.</summary>
     [JsonPropertyName("end")]
-    public double? End { get; set; }
+    public double End { get; set; }
 }
 
 /// <summary>The <c>StreamTranscriptWord</c> object of the API.</summary>
@@ -410,7 +410,7 @@ public sealed class StreamAck : JsonModel, IStreamEvent
     public string Type { get; set; } = "ack";
 
     /// <summary>
-    /// Seconds of audio the server has read. Transcripts for audio before this point can still arrive after the ack. If the last stretch was silence, none does.
+    /// Seconds of audio the server has read, with 3 decimals. Transcripts for audio before this point can still arrive after the ack, then <c>flushed</c> with the same value. If the last stretch was silence, no transcript comes.
     /// </summary>
     [JsonPropertyName("processed_until")]
     public double ProcessedUntil { get; set; }

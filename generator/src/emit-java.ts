@@ -249,7 +249,7 @@ function emitServerMessages(ir: Ir): string {
   out += 'package me.medisync.models;\n\nimport java.util.HashMap;\nimport java.util.Map;\nimport me.medisync.audio.StreamEvent;\nimport org.jspecify.annotations.Nullable;\n\n';
   out += '/** The classes of the messages the server sends on the live stream, by <code>type</code>. */\npublic final class StreamServerMessages {\n  private StreamServerMessages() {}\n\n';
   out += '  private static final Map<String, Class<? extends StreamEvent>> BY_TYPE = new HashMap<>();\n\n  static {\n';
-  for (const m of ir.liveServerMessages) out += `    BY_TYPE.put(${JSON.stringify(m.type)}, ${javaClass('live', m.model)}.class);\n`;
+  for (const m of ir.liveServerMessages) if (!HAND_WRITTEN_LIVE.has(m.model)) out += `    BY_TYPE.put(${JSON.stringify(m.type)}, ${javaClass('live', m.model)}.class);\n`;
   out += '  }\n\n  /** The class of a message type, or null for a type this SDK version does not know. */\n  public static @Nullable Class<? extends StreamEvent> forType(String type) {\n    return BY_TYPE.get(type);\n  }\n}\n';
   return out;
 }
@@ -507,6 +507,10 @@ function nodeFile(node: Node, isRoot: boolean, isAsync: boolean, ir: Ir): [strin
   return [`${JAVA_DIR}/resources/${name}.java`, out];
 }
 
+// Live messages this language keeps by hand: 0.2.0 published them in the audio package before the
+// spec had them. One class per message, so the generator writes no second one and no registry entry.
+const HAND_WRITTEN_LIVE = new Set(['StreamFlushed']);
+
 export function emitJava(ir: Ir): Record<string, string> {
   const files: Record<string, string> = {};
   const sources: Record<Api, string> = { platform: 'specs/openapi.json', connect: 'specs/connect-openapi.json', live: 'specs/asyncapi.yaml' };
@@ -514,6 +518,7 @@ export function emitJava(ir: Ir): Record<string, string> {
   const seen = new Map<string, Api>();
   for (const api of ['platform', 'connect', 'live'] as Api[]) {
     for (const m of ir.models[api].values()) {
+      if (api === 'live' && HAND_WRITTEN_LIVE.has(m.name)) continue;
       if (TAKEN.has(m.name)) throw new Error(`The model ${m.name} has a name the Java code needs`);
       const key = `${PKG[api]}.${javaClass(api, m.name)}`;
       if (seen.has(key)) throw new Error(`Two Java classes ${key}`);

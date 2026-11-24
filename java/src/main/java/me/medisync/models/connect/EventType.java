@@ -24,6 +24,9 @@ public final class EventType {
   /** <code>connection.capabilities_changed</code> */
   public static final String CONNECTION_CAPABILITIES_CHANGED = "connection.capabilities_changed";
 
+  /** <code>busy.changed</code> */
+  public static final String BUSY_CHANGED = "busy.changed";
+
   /** <code>transfer.reopened</code> */
   public static final String TRANSFER_REOPENED = "transfer.reopened";
 

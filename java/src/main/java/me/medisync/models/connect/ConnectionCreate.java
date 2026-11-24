@@ -20,6 +20,9 @@ public final class ConnectionCreate extends JsonModel {
   @JsonProperty("settings")
   private @Nullable Map<String, Object> settings;
 
+  @JsonProperty("placement")
+  private @Nullable String placement;
+
   /** An empty object. */
   public ConnectionCreate() {}
 
@@ -84,6 +87,22 @@ public final class ConnectionCreate extends JsonModel {
   /** Sets <code>settings</code> and returns this object. */
   public ConnectionCreate settings(@Nullable Map<String, Object> value) {
     setSettings(value);
+    return this;
+  }
+
+  /** Only for a system with <code>placements</code>: where the connection runs. Default: the system's <code>placement</code>. Another placement than the system's answers 400 (<code>param: placement</code>). */
+  public @Nullable String getPlacement() {
+    return placement;
+  }
+
+  /** Sets <code>placement</code>. */
+  public void setPlacement(@Nullable String value) {
+    this.placement = value;
+  }
+
+  /** Sets <code>placement</code> and returns this object. */
+  public ConnectionCreate placement(@Nullable String value) {
+    setPlacement(value);
     return this;
   }
 }

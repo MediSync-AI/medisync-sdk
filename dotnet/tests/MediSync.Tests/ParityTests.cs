@@ -57,7 +57,7 @@ public class ParityTests
         var ops = names["operations"]!.AsArray();
         var helpers = names["helpers"]!.AsArray();
         Assert.Equal(ids, new SortedSet<string>(ops.Select(o => $"{o!["api"]}:{o["operationId"]}"), StringComparer.Ordinal));
-        Assert.Equal(94, SpecOperationIds("connect-openapi.json").Count);
+        Assert.Equal(100, SpecOperationIds("connect-openapi.json").Count);
         var expected = new SortedSet<string>(ops.Select(o => o!["dotnet"]!.GetValue<string>()).Concat(helpers.Select(h => h!["dotnet"]!.GetValue<string>())), StringComparer.Ordinal);
         Assert.Equal(expected, PublicMethods(new MediSyncClient("msk_test_parity")));
         Assert.Equal(new SortedSet<string>(ops.Select(o => o!["typescript"]!.GetValue<string>()), StringComparer.Ordinal), new SortedSet<string>(Operations.All.Keys, StringComparer.Ordinal));

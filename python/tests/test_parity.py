@@ -42,7 +42,7 @@ def test_one_method_per_operation_and_the_helpers() -> None:
         [f"platform:{i}" for i in spec_operation_ids("openapi.json")] + [f"connect:{i}" for i in spec_operation_ids("connect-openapi.json")]
     )
     assert sorted(f"{o['api']}:{o['operationId']}" for o in NAMES["operations"]) == ids
-    assert len(spec_operation_ids("connect-openapi.json")) == 94
+    assert len(spec_operation_ids("connect-openapi.json")) == 100
     expected = sorted([o["python"] for o in NAMES["operations"]] + [h["python"] for h in NAMES["helpers"]])
     assert public_methods(MediSync(api_key="msk_test_parity")) == expected
     assert public_methods(AsyncMediSync(api_key="msk_test_parity")) == expected

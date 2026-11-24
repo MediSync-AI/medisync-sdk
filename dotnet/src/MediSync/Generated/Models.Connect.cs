@@ -53,7 +53,9 @@ public sealed class System : JsonModel
     [JsonPropertyName("vendor")]
     public string Vendor { get; set; } = default!;
 
-    /// <summary>The <c>kind</c> field.</summary>
+    /// <summary>
+    /// <c>calendar</c>: a calendar or booking service in the cloud (Google Calendar, Microsoft 365), <c>placement: cloud</c>.
+    /// </summary>
     [JsonPropertyName("kind")]
     public string Kind { get; set; } = default!;
 
@@ -66,6 +68,16 @@ public sealed class System : JsonModel
     /// </summary>
     [JsonPropertyName("placement")]
     public string Placement { get; set; } = default!;
+
+    /// <summary>
+    /// Only for a system that runs in either place (<c>caldav-ics</c>: a calendar in the practice network or on the internet). <c>placement</c> is the default; <c>connections.create</c> takes the other with <c>placement</c>. <c>auth</c> then describes the sign-in of a cloud connection; a hub connection keeps its secrets on the hub.
+    /// </summary>
+    [JsonPropertyName("placements")]
+    public IList<string>? Placements { get; set; }
+
+    /// <summary>The <c>auth</c> field.</summary>
+    [JsonPropertyName("auth")]
+    public SystemAuth? Auth { get; set; }
 
     /// <summary>
     /// Strongest proof that we can talk to the system.
@@ -94,6 +106,56 @@ public sealed class System : JsonModel
     /// <summary>The <c>docs_url</c> field.</summary>
     [JsonPropertyName("docs_url")]
     public string? DocsUrl { get; set; }
+}
+
+/// <summary>
+/// How a practice signs in to a cloud system (<c>placement: cloud</c>). Hub systems have none.
+/// </summary>
+public sealed class SystemAuth : JsonModel
+{
+    /// <summary>The <c>kind</c> field.</summary>
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = default!;
+
+    /// <summary>
+    /// <c>oauth2</c>: the MediSync app at the provider, <c>google</c> or <c>microsoft</c>.
+    /// </summary>
+    [JsonPropertyName("provider")]
+    public string? Provider { get; set; }
+
+    /// <summary>
+    /// <c>oauth2</c>: the scopes Connect asks for.
+    /// </summary>
+    [JsonPropertyName("scopes")]
+    public IList<string>? Scopes { get; set; }
+
+    /// <summary>
+    /// <c>fields</c>: the values the practice copies.
+    /// </summary>
+    [JsonPropertyName("fields")]
+    public IList<SystemAuthField>? Fields { get; set; }
+}
+
+/// <summary>The <c>SystemAuthField</c> object of the API.</summary>
+public sealed class SystemAuthField : JsonModel
+{
+    /// <summary>The <c>name</c> field.</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = default!;
+
+    /// <summary>The <c>kind</c> field.</summary>
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = default!;
+
+    /// <summary>The <c>required</c> field.</summary>
+    [JsonPropertyName("required")]
+    public bool Required { get; set; }
+
+    /// <summary>
+    /// The label the dashboard shows (German).
+    /// </summary>
+    [JsonPropertyName("label")]
+    public string? Label { get; set; }
 }
 
 /// <summary>The <c>SystemVerb</c> object of the API.</summary>
@@ -1071,10 +1133,14 @@ public sealed class Connection : JsonModel
     private string? _vendorVersion;
 
     /// <summary>
-    /// Non-secret settings. Credentials stay in the hub and never pass this API.
+    /// Non-secret settings. Credentials of a hub connection stay in the hub and never pass this API. A cloud connection's credentials go in once, write only (<c>connections.oauthStart</c>, <c>connections.setSecrets</c>), and are never answered. <c>calendar_map</c> (a <c>CalendarMap</c>) says which member each calendar of the connection belongs to; the cloud keeps it, the hub never sees it.
     /// </summary>
     [JsonPropertyName("settings")]
     public IDictionary<string, object>? Settings { get; set; }
+
+    /// <summary>The <c>auth</c> field.</summary>
+    [JsonPropertyName("auth")]
+    public ConnectionAuth? Auth { get; set; }
 
     /// <summary>The <c>created_at</c> field.</summary>
     [JsonPropertyName("created_at")]
@@ -1083,6 +1149,52 @@ public sealed class Connection : JsonModel
     /// <summary>The <c>updated_at</c> field.</summary>
     [JsonPropertyName("updated_at")]
     public string UpdatedAt { get; set; } = default!;
+}
+
+/// <summary>
+/// The sign-in of a connection with <c>placement: cloud</c>. Only states, never a token or a value. A hub connection has no <c>auth</c>.
+/// </summary>
+public sealed class ConnectionAuth : JsonModel
+{
+    /// <summary>
+    /// <c>oauth2</c>: the practice signs in at the provider (<c>connections.oauthStart</c>). <c>fields</c>: the practice copies values (<c>connections.setSecrets</c>). <c>none</c>: nothing to sign in.
+    /// </summary>
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = default!;
+
+    /// <summary>
+    /// <c>missing</c>: no sign-in yet, or disconnected. <c>ok</c>: signed in. <c>broken</c>: the provider refused the grant (revoked, expired, a scope missing): the practice signs in again; reads answer 502 <c>connection_failed</c> with <c>reason: auth_broken</c>.
+    /// </summary>
+    [JsonPropertyName("state")]
+    public string State { get; set; } = default!;
+
+    /// <summary>
+    /// The code of the last refusal: <c>auth_broken</c>, <c>scope_missing</c>, <c>code_refused</c>, <c>access_denied</c>, <c>disconnected</c>, <c>server_changed</c> (copied fields set for another <c>settings.url</c>; set them again).
+    /// </summary>
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    /// <summary>
+    /// When the current access token ends. Connect refreshes it before.
+    /// </summary>
+    [JsonPropertyName("expires_at")]
+    public string? ExpiresAt { get; set; }
+
+    /// <summary>
+    /// The scopes the provider granted.
+    /// </summary>
+    [JsonPropertyName("scopes")]
+    public IList<string>? Scopes { get; set; }
+
+    /// <summary>
+    /// The names of the copied fields that are set.
+    /// </summary>
+    [JsonPropertyName("fields_set")]
+    public IList<string>? FieldsSet { get; set; }
+
+    /// <summary>The <c>updated_at</c> field.</summary>
+    [JsonPropertyName("updated_at")]
+    public string? UpdatedAt { get; set; }
 }
 
 /// <summary>The <c>ConnectionsListQuery</c> object of the API.</summary>
@@ -1125,6 +1237,12 @@ public sealed class ConnectionCreate : JsonModel
     /// <summary>The <c>settings</c> field.</summary>
     [JsonPropertyName("settings")]
     public IDictionary<string, object>? Settings { get; set; }
+
+    /// <summary>
+    /// Only for a system with <c>placements</c>: where the connection runs. Default: the system's <c>placement</c>. Another placement than the system's answers 400 (<c>param: placement</c>).
+    /// </summary>
+    [JsonPropertyName("placement")]
+    public string? Placement { get; set; }
 }
 
 /// <summary>The <c>ConnectionUpdate</c> object of the API.</summary>
@@ -1141,6 +1259,22 @@ public sealed class ConnectionUpdate : JsonModel
     /// <summary>The <c>settings</c> field.</summary>
     [JsonPropertyName("settings")]
     public IDictionary<string, object>? Settings { get; set; }
+
+    /// <summary>
+    /// Sets <c>settings.calendar_map</c> alone; the other settings stay. <c>null</c> removes it. A member id must name a member of the connection's site.
+    /// </summary>
+    [JsonPropertyName("calendar_map")]
+    public IDictionary<string, string>? CalendarMap
+    {
+        get => _calendarMap;
+        set
+        {
+            _calendarMap = value;
+            ExplicitNull("calendar_map", value is null);
+        }
+    }
+
+    private IDictionary<string, string>? _calendarMap;
 }
 
 /// <summary>The <c>ConnectionTestResult</c> object of the API.</summary>
@@ -1197,6 +1331,82 @@ public sealed class ConnectionTestResultStep : JsonModel
     /// <summary>The <c>message</c> field.</summary>
     [JsonPropertyName("message")]
     public string? Message { get; set; }
+}
+
+/// <summary>The <c>ConnectionOAuthStart</c> object of the API.</summary>
+public sealed class ConnectionOAuthStart : JsonModel
+{
+    /// <summary>
+    /// The member who signs in for the practice. An active member of the connection's site; a partner key's own member.
+    /// </summary>
+    [JsonPropertyName("member_id")]
+    public string MemberId { get; set; } = default!;
+
+    /// <summary>
+    /// Where the browser goes after the sign-in, with <c>connection_id</c>, <c>status</c> and <c>reason</c> added to the query. An https URL on the origin of a MediSync dashboard, no fragment. Without it Connect shows a short page.
+    /// </summary>
+    [JsonPropertyName("return_url")]
+    public string? ReturnUrl { get; set; }
+}
+
+/// <summary>The <c>ConnectionOAuthStarted</c> object of the API.</summary>
+public sealed class ConnectionOAuthStarted : JsonModel
+{
+    /// <summary>The <c>connection_id</c> field.</summary>
+    [JsonPropertyName("connection_id")]
+    public string ConnectionId { get; set; } = default!;
+
+    /// <summary>
+    /// Connect's start page of this sign-in (<c>/oauth/start</c>). Open it in the practice's browser: it ties the sign-in to that browser with a cookie and sends it on to the provider's page with PKCE. It opens once; the sign-in finishes only in the browser that opened it.
+    /// </summary>
+    [JsonPropertyName("authorize_url")]
+    public string AuthorizeUrl { get; set; } = default!;
+
+    /// <summary>
+    /// The sign-in works until then (15 minutes).
+    /// </summary>
+    [JsonPropertyName("expires_at")]
+    public string ExpiresAt { get; set; } = default!;
+}
+
+/// <summary>The <c>ConnectionSecretsSet</c> object of the API.</summary>
+public sealed class ConnectionSecretsSet : JsonModel
+{
+    /// <summary>
+    /// The values by field name (<c>System.auth.fields</c>). Every required field; at most 16; each up to 4096 characters.
+    /// </summary>
+    [JsonPropertyName("fields")]
+    public IDictionary<string, string> Fields { get; set; } = default!;
+
+    /// <summary>
+    /// The member who sets them, for the audit log.
+    /// </summary>
+    [JsonPropertyName("member_id")]
+    public string? MemberId { get; set; }
+}
+
+/// <summary>The <c>ConnectionSecretsDelete</c> object of the API.</summary>
+public sealed class ConnectionSecretsDelete : JsonModel
+{
+    /// <summary>
+    /// The member who disconnects, for the audit log.
+    /// </summary>
+    [JsonPropertyName("member_id")]
+    public string? MemberId { get; set; }
+}
+
+/// <summary>The <c>ConnectionInbound</c> object of the API.</summary>
+public sealed class ConnectionInbound : JsonModel
+{
+    /// <summary>The <c>connection_id</c> field.</summary>
+    [JsonPropertyName("connection_id")]
+    public string ConnectionId { get; set; } = default!;
+
+    /// <summary>
+    /// The webhook address for the system's settings. It holds a token; show it to the practice's admin only.
+    /// </summary>
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = default!;
 }
 
 /// <summary>The <c>ConnectionHealth</c> object of the API.</summary>
@@ -1450,6 +1660,9 @@ public static class Verb
 
     /// <summary><c>appointment.list</c></summary>
     public const string AppointmentList = "appointment.list";
+
+    /// <summary><c>appointment.busy</c></summary>
+    public const string AppointmentBusy = "appointment.busy";
 
     /// <summary><c>appointment.book</c></summary>
     public const string AppointmentBook = "appointment.book";
@@ -3606,6 +3819,9 @@ public static class EventType
     /// <summary><c>connection.capabilities_changed</c></summary>
     public const string ConnectionCapabilitiesChanged = "connection.capabilities_changed";
 
+    /// <summary><c>busy.changed</c></summary>
+    public const string BusyChanged = "busy.changed";
+
     /// <summary><c>transfer.reopened</c></summary>
     public const string TransferReopened = "transfer.reopened";
 
@@ -3682,7 +3898,9 @@ public sealed class Event : JsonModel
     [JsonPropertyName("created_at")]
     public string CreatedAt { get; set; } = default!;
 
-    /// <summary>The <c>data</c> field.</summary>
+    /// <summary>
+    /// Codes and ids only. <c>busy.changed</c>: <c>connection_id</c>, and <c>from</c> and <c>to</c>, the days (YYYY-MM-DD, German time, inclusive) in which busy times of the connection changed. Read <c>appointments.busySite</c> for those days again. A hub sends it when its system reports a change; for a cloud connection Connect polls the system every five minutes and takes its webhook calls (<c>connections.getInbound</c>).
+    /// </summary>
     [JsonPropertyName("data")]
     public IDictionary<string, object> Data { get; set; } = default!;
 }
@@ -4686,6 +4904,208 @@ public sealed class AppointmentsListSiteQuery : JsonModel
 
     /// <summary>
     /// <c>next_cursor</c> of the previous page.
+    /// </summary>
+    [JsonPropertyName("cursor")]
+    public string? Cursor { get; set; }
+
+    /// <summary>
+    /// Page size.
+    /// </summary>
+    [JsonPropertyName("limit")]
+    public long? Limit { get; set; }
+}
+
+/// <summary>The <c>SiteBusyList</c> object of the API.</summary>
+public sealed class SiteBusyList : JsonModel
+{
+    /// <summary>
+    /// Present and true when the simulated hub of a test site gave this answer. No real system was reached.
+    /// </summary>
+    [JsonPropertyName("simulated")]
+    public bool? Simulated { get; set; }
+
+    /// <summary>
+    /// The intervals of every source, by <c>start</c>, then <c>source_id</c>, then <c>connection_id</c>. One page holds each interval once.
+    /// </summary>
+    [JsonPropertyName("data")]
+    public IList<BusyInterval> Data { get; set; } = default!;
+
+    /// <summary>The <c>next_cursor</c> field.</summary>
+    [JsonPropertyName("next_cursor")]
+    public string? NextCursor
+    {
+        get => _nextCursor;
+        set
+        {
+            _nextCursor = value;
+            ExplicitNull("next_cursor", value is null);
+        }
+    }
+
+    private string? _nextCursor;
+
+    /// <summary>
+    /// <c>true</c> only when every source is <c>ok</c> and complete. A caller that knows a system's calendar is not in use (a practice that books only in MediSync) may decide per source from <c>sources</c>.
+    /// </summary>
+    [JsonPropertyName("complete")]
+    public bool Complete { get; set; }
+
+    /// <summary>
+    /// One entry per connection of the site that was asked or skipped, in the order of the connections.
+    /// </summary>
+    [JsonPropertyName("sources")]
+    public IList<BusySource> Sources { get; set; } = default!;
+}
+
+/// <summary>
+/// A time a calendar is taken. No patient, no title, no reason. The cloud always sends <c>practitioner</c>, <c>null</c> where the system names no column.
+/// </summary>
+public sealed class BusyInterval : JsonModel
+{
+    /// <summary>The <c>start</c> field.</summary>
+    [JsonPropertyName("start")]
+    public string Start { get; set; } = default!;
+
+    /// <summary>
+    /// The end, not included.
+    /// </summary>
+    [JsonPropertyName("end")]
+    public string End { get; set; } = default!;
+
+    /// <summary>
+    /// The calendar, column or resource the time is taken in, as the system names it: the DURIA column, HL7 AIG, AIL, AIP or AIS-3.1, the ISiK HealthcareService or Practitioner reference. <c>null</c> when the system names none (MEDICAL OFFICE syncs one Terminzone per connection). The key of <c>calendar_map</c>.
+    /// </summary>
+    [JsonPropertyName("practitioner")]
+    public string? Practitioner
+    {
+        get => _practitioner;
+        set
+        {
+            _practitioner = value;
+            ExplicitNull("practitioner", value is null);
+        }
+    }
+
+    private string? _practitioner;
+
+    /// <summary>
+    /// The id of the busy time on this connection, stable while it exists. Where the system has an appointment id, it is the <c>id</c> that <c>appointment.list</c> gives the same appointment. Keep copies by <c>connection_id</c> and <c>source_id</c>.
+    /// </summary>
+    [JsonPropertyName("source_id")]
+    public string SourceId { get; set; } = default!;
+
+    /// <summary>
+    /// The site member this time blocks, from the connection's <c>calendar_map</c>. <c>null</c>: it blocks the whole practice (no entry for its <c>practitioner</c> and no <c>*</c> entry, or the entry <c>practice</c>). Set by the cloud.
+    /// </summary>
+    [JsonPropertyName("member_id")]
+    public string? MemberId
+    {
+        get => _memberId;
+        set
+        {
+            _memberId = value;
+            ExplicitNull("member_id", value is null);
+        }
+    }
+
+    private string? _memberId;
+
+    /// <summary>
+    /// The connection the interval came from. Set in <c>appointments.busySite</c>.
+    /// </summary>
+    [JsonPropertyName("connection_id")]
+    public string? ConnectionId { get; set; }
+
+    /// <summary>
+    /// The system of that connection. Set in <c>appointments.busySite</c>.
+    /// </summary>
+    [JsonPropertyName("system_id")]
+    public string? SystemId { get; set; }
+}
+
+/// <summary>The <c>BusySource</c> object of the API.</summary>
+public sealed class BusySource : JsonModel
+{
+    /// <summary>The <c>connection_id</c> field.</summary>
+    [JsonPropertyName("connection_id")]
+    public string ConnectionId { get; set; } = default!;
+
+    /// <summary>The <c>system_id</c> field.</summary>
+    [JsonPropertyName("system_id")]
+    public string SystemId { get; set; } = default!;
+
+    /// <summary>
+    /// <c>ok</c>: the connection answered, <c>count</c> intervals are in <c>data</c> (before paging). <c>unsupported</c>: Connect cannot read busy times of this system (<c>reason</c>: the capability reason, or <c>needs_patient_id</c> for a system that lists appointments per patient only). A verb this key may not call at this site because it is not proven on the system yet (<c>verb_unverified</c> on one connection) is <c>unsupported</c> with <c>reason: not_tested</c> here: no source, not a failed one. So is a cloud connection whose sign-in never finished or was removed (<c>reason: not_signed_in</c>). One that signed in and broke later is <c>failed</c>. <c>failed</c>: the read failed, <c>reason</c> names the error code (<c>agent_offline</c>, <c>connection_failed</c>, ...).
+    /// </summary>
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = default!;
+
+    /// <summary>
+    /// <c>busy</c>: read with <c>appointment.busy</c>. <c>list</c>: read with <c>appointment.list</c> and reduced in the cloud (a hub before <c>appointment.busy</c>).
+    /// </summary>
+    [JsonPropertyName("via")]
+    public string? Via { get; set; }
+
+    /// <summary>
+    /// <c>true</c> when the source answered and its answer is complete. Always <c>false</c> for <c>unsupported</c> and <c>failed</c>.
+    /// </summary>
+    [JsonPropertyName("complete")]
+    public bool Complete { get; set; }
+
+    /// <summary>
+    /// Why the source is not <c>ok</c>, or why an <c>ok</c> source is not complete (the codes of <c>BusyIntervalList.reason</c>).
+    /// </summary>
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    /// <summary>The <c>synced_at</c> field.</summary>
+    [JsonPropertyName("synced_at")]
+    public string? SyncedAt
+    {
+        get => _syncedAt;
+        set
+        {
+            _syncedAt = value;
+            ExplicitNull("synced_at", value is null);
+        }
+    }
+
+    private string? _syncedAt;
+
+    /// <summary>The <c>count</c> field.</summary>
+    [JsonPropertyName("count")]
+    public long Count { get; set; }
+}
+
+/// <summary>The <c>AppointmentsBusySiteQuery</c> object of the API.</summary>
+public sealed class AppointmentsBusySiteQuery : JsonModel
+{
+    /// <summary>
+    /// First day, inclusive (YYYY-MM-DD, German time).
+    /// </summary>
+    [JsonPropertyName("from")]
+    public string From { get; set; } = default!;
+
+    /// <summary>
+    /// Last day, inclusive (YYYY-MM-DD, German time). At most 91 days after <c>from</c>, so one call covers 92 days.
+    /// </summary>
+    [JsonPropertyName("to")]
+    public string To { get; set; } = default!;
+
+    /// <summary>
+    /// The member the read runs for. Busy times carry no patient data, so it is optional. When given, it must be an active member of the site.
+    /// </summary>
+    [JsonPropertyName("member_id")]
+    public string? MemberId { get; set; }
+
+    /// <summary>
+    /// Ask only this connection of the site.
+    /// </summary>
+    [JsonPropertyName("connection_id")]
+    public string? ConnectionId { get; set; }
+
+    /// <summary>
+    /// <c>next_cursor</c> of the previous page. Every page is a new read of the systems, so the cursor names the last interval of the page (its <c>start</c>, <c>source_id</c> and <c>connection_id</c>), not a position: the next page starts after that interval. A busy time that goes or comes between two pages moves no other one across the border; one that comes before the cursor is on no page of this walk (read again after <c>busy.changed</c>). A cursor of a page before 20.11.2026 (a position) still works in this release.
     /// </summary>
     [JsonPropertyName("cursor")]
     public string? Cursor { get; set; }
@@ -6513,6 +6933,12 @@ public sealed class AppointmentSlot : JsonModel
     /// <summary>The <c>status</c> field.</summary>
     [JsonPropertyName("status")]
     public string Status { get; set; } = default!;
+
+    /// <summary>
+    /// The appointment types this slot takes, where the system types its slots (DURIA the Terminart id, ISiK the service type code).
+    /// </summary>
+    [JsonPropertyName("appointment_types")]
+    public IList<string>? AppointmentTypes { get; set; }
 }
 
 /// <summary>The <c>AppointmentsListSlotsQuery</c> object of the API.</summary>
@@ -6529,6 +6955,18 @@ public sealed class AppointmentsListSlotsQuery : JsonModel
     /// </summary>
     [JsonPropertyName("to")]
     public string? To { get; set; }
+
+    /// <summary>
+    /// Only the slots of this calendar or column, the <c>practitioner</c> value of a slot. A system that names no column (MEDICAL OFFICE) has no slot with a <c>practitioner</c>.
+    /// </summary>
+    [JsonPropertyName("practitioner")]
+    public string? Practitioner { get; set; }
+
+    /// <summary>
+    /// Only the slots that take this appointment type, one value of <c>appointment_types</c> of a slot (DURIA: the id of the Terminart; ISiK: the code of the service type). A slot without <c>appointment_types</c> is kept: its system does not type its slots.
+    /// </summary>
+    [JsonPropertyName("appointment_type")]
+    public string? AppointmentType { get; set; }
 
     /// <summary>
     /// <c>next_cursor</c> of the previous page.
@@ -6615,6 +7053,104 @@ public sealed class AppointmentsListQuery : JsonModel
     public long? Limit { get; set; }
 }
 
+/// <summary>The <c>BusyIntervalList</c> object of the API.</summary>
+public sealed class BusyIntervalList : JsonModel
+{
+    /// <summary>
+    /// Present and true when the simulated hub of a test site gave this answer. No real system was reached.
+    /// </summary>
+    [JsonPropertyName("simulated")]
+    public bool? Simulated { get; set; }
+
+    /// <summary>
+    /// By <c>start</c>, then <c>source_id</c>.
+    /// </summary>
+    [JsonPropertyName("data")]
+    public IList<BusyInterval> Data { get; set; } = default!;
+
+    /// <summary>The <c>next_cursor</c> field.</summary>
+    [JsonPropertyName("next_cursor")]
+    public string? NextCursor
+    {
+        get => _nextCursor;
+        set
+        {
+            _nextCursor = value;
+            ExplicitNull("next_cursor", value is null);
+        }
+    }
+
+    private string? _nextCursor;
+
+    /// <summary>
+    /// <c>true</c>: every busy time of the range is in the answer (over all pages). <c>false</c>: busy times may be missing, <c>reason</c> says why. Treat a time without an interval as unknown then, not as free.
+    /// </summary>
+    [JsonPropertyName("complete")]
+    public bool Complete { get; set; }
+
+    /// <summary>
+    /// Only with <c>complete: false</c>. <c>not_synced</c>: the system has not synced its calendar with the hub lately (MEDICAL OFFICE: no Abgleich for 15 minutes, or since the hub started). <c>feed_only</c>: the hub knows only the appointments whose messages it received (HL7 KIS). <c>cut</c>: more busy times than one answer holds. <c>past_days</c>: the range starts before today and the system syncs from today on (hubs before 20.11.2026 only: a past day cannot be booked, so it no longer makes an answer incomplete). <c>recurring</c>: a recurring event the hub does not expand. <c>first_pages_only</c>: the system had more pages than the hub reads (ISiK). <c>via_list</c>: read with <c>appointment.list</c> (a hub before <c>appointment.busy</c>), which cannot say whether its copy is complete. <c>unreadable</c>: an appointment or busy time of the system has no readable times or id (CalDAV and iCal feeds, eTermin, Cal.com, ISiK), or Connect dropped a busy time of the answer it could not read (a <c>source_id</c> over 200 characters). New codes may appear.
+    /// </summary>
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    /// <summary>
+    /// When the system last synced its calendar with the hub, where the hub knows it (MEDICAL OFFICE's last Abgleich, the last SIU message of an HL7 KIS).
+    /// </summary>
+    [JsonPropertyName("synced_at")]
+    public string? SyncedAt
+    {
+        get => _syncedAt;
+        set
+        {
+            _syncedAt = value;
+            ExplicitNull("synced_at", value is null);
+        }
+    }
+
+    private string? _syncedAt;
+}
+
+/// <summary>The <c>AppointmentsBusyQuery</c> object of the API.</summary>
+public sealed class AppointmentsBusyQuery : JsonModel
+{
+    /// <summary>
+    /// First day, inclusive (YYYY-MM-DD, German time).
+    /// </summary>
+    [JsonPropertyName("from")]
+    public string From { get; set; } = default!;
+
+    /// <summary>
+    /// Last day, inclusive (YYYY-MM-DD, German time). At most 91 days after <c>from</c>, so one call covers 92 days.
+    /// </summary>
+    [JsonPropertyName("to")]
+    public string To { get; set; } = default!;
+
+    /// <summary>
+    /// Only the intervals of this calendar or column, the <c>practitioner</c> value of an interval.
+    /// </summary>
+    [JsonPropertyName("practitioner")]
+    public string? Practitioner { get; set; }
+
+    /// <summary>
+    /// The member the read runs for. Busy times carry no patient data, so it is optional. When given, it must be an active member of the site.
+    /// </summary>
+    [JsonPropertyName("member_id")]
+    public string? MemberId { get; set; }
+
+    /// <summary>
+    /// <c>next_cursor</c> of the previous page. Every page is a new read of the systems, so the cursor names the last interval of the page (its <c>start</c>, <c>source_id</c> and <c>connection_id</c>), not a position: the next page starts after that interval. A busy time that goes or comes between two pages moves no other one across the border; one that comes before the cursor is on no page of this walk (read again after <c>busy.changed</c>). A cursor of a page before 20.11.2026 (a position) still works in this release.
+    /// </summary>
+    [JsonPropertyName("cursor")]
+    public string? Cursor { get; set; }
+
+    /// <summary>
+    /// Page size.
+    /// </summary>
+    [JsonPropertyName("limit")]
+    public long? Limit { get; set; }
+}
+
 /// <summary>The <c>AppointmentBookPlanRequest</c> object of the API.</summary>
 public sealed class AppointmentBookPlanRequest : JsonModel
 {
@@ -6622,13 +7158,39 @@ public sealed class AppointmentBookPlanRequest : JsonModel
     [JsonPropertyName("patient")]
     public PatientRef Patient { get; set; } = default!;
 
-    /// <summary>The <c>slot_id</c> field.</summary>
+    /// <summary>
+    /// A slot of <c>appointments.listSlots</c>. A calendar connection (<c>google-calendar</c>, <c>microsoft-365</c>, <c>caldav-ics</c>) takes the time of the booking instead: <c>&lt;start&gt;/&lt;end&gt;</c>, two RFC 3339 times in UTC (<c>2026-11-23T08:00:00Z/2026-11-23T08:30:00Z</c>), at most one day. <c>caldav-ics</c> also takes its older form <c>cal-busy:&lt;start&gt;:&lt;minutes&gt;</c>.
+    /// </summary>
     [JsonPropertyName("slot_id")]
     public string SlotId { get; set; } = default!;
 
     /// <summary>The <c>reason</c> field.</summary>
     [JsonPropertyName("reason")]
     public string? Reason { get; set; }
+
+    /// <summary>
+    /// The calling app and its id of the booking. A calendar connection needs <c>external_id</c>: it keys the neutral "Belegt" event by it, so a repeat or a moved booking writes the same event and <c>appointments.planCancel</c> with the same id as <c>appointment_id</c> deletes it. Without <c>source</c>, the document names the calling app only.
+    /// </summary>
+    [JsonPropertyName("source")]
+    public AppointmentBookPlanRequestSource? Source { get; set; }
+}
+
+/// <summary>
+/// The calling app and its id of the booking. A calendar connection needs <c>external_id</c>: it keys the neutral "Belegt" event by it, so a repeat or a moved booking writes the same event and <c>appointments.planCancel</c> with the same id as <c>appointment_id</c> deletes it. Without <c>source</c>, the document names the calling app only.
+/// </summary>
+public sealed class AppointmentBookPlanRequestSource : JsonModel
+{
+    /// <summary>
+    /// Calling app, for example <c>scribe</c>.
+    /// </summary>
+    [JsonPropertyName("app")]
+    public string App { get; set; } = default!;
+
+    /// <summary>
+    /// The caller's own id of the booking, at most 200 characters.
+    /// </summary>
+    [JsonPropertyName("external_id")]
+    public string? ExternalId { get; set; }
 }
 
 /// <summary>The <c>AppointmentCancelPlanRequest</c> object of the API.</summary>
@@ -7109,7 +7671,7 @@ public sealed class ErrorObject : JsonModel
     public string? ConnectionId { get; set; }
 
     /// <summary>
-    /// Capability reason, for example <c>system_cannot</c>, <c>protocol_cannot</c>, <c>not_tested</c>. With <c>forbidden</c>, <c>member_secret</c> means the member has not linked their own account of the system in MediSync Connect (DURIA); <c>admin_assertion_required</c> means a partner key sent no valid <c>admin_assertion</c>; <c>other_device</c> means no valid <c>device_proof</c>; <c>not_site_setup</c> means only the app that set up the site (or MediSync) may change this, and an installed app changes only the members it added; <c>test_key</c> means a test key may not change an app that has a live project; <c>app_not_verified</c> means MediSync has not verified the app for live sites, <c>no_app</c> that the project has no app; <c>role</c> means the member's role may not do this; <c>needs_kontext</c> means the system answers only for the patient open in it, and the message names the step for that system (T2med needs the patient opened in T2med and MediSync started there, MEDICAL OFFICE needs the patient open in MEDICAL OFFICE or MediSync started from its Krankenblatt, QUINCY needs the MediSync button of the BDT-Anschluss pressed in the patient's Karteikarte); a read for another patient than the open one, or after the export file is older than the connection allows, gets the same reason; the call may succeed later. <c>no_desk_session</c> means the system reads for the member only through their MediSync Connect desk (T2med) and the member has no desk session at the site; the call may succeed after the member signs in to the desk.
+    /// Capability reason, for example <c>system_cannot</c>, <c>protocol_cannot</c>, <c>not_tested</c>. With <c>forbidden</c>, <c>member_secret</c> means the member has not linked their own account of the system in MediSync Connect (DURIA); <c>admin_assertion_required</c> means a partner key sent no valid <c>admin_assertion</c>; <c>other_device</c> means no valid <c>device_proof</c>; <c>not_site_setup</c> means only the app that set up the site (or MediSync) may change this, and an installed app changes only the members it added; <c>test_key</c> means a test key may not change an app that has a live project; <c>app_not_verified</c> means MediSync has not verified the app for live sites, <c>no_app</c> that the project has no app; <c>role</c> means the member's role may not do this; <c>needs_kontext</c> means the system answers only for the patient open in it, and the message names the step for that system (T2med needs the patient opened in T2med and MediSync started there, MEDICAL OFFICE needs the patient open in MEDICAL OFFICE or MediSync started from its Krankenblatt, QUINCY needs the MediSync button of the BDT-Anschluss pressed in the patient's Karteikarte); a read for another patient than the open one, or after the export file is older than the connection allows, gets the same reason; the call may succeed later. <c>no_desk_session</c> means the system reads for the member only through their MediSync Connect desk (T2med) and the member has no desk session at the site; the call may succeed after the member signs in to the desk. <c>untested_system</c> (<c>connections.create</c>) means the system has not run against the real product yet, so only MediSync's test sites and the pilot sites of that system may connect it.
     /// </summary>
     [JsonPropertyName("reason")]
     public string? Reason { get; set; }

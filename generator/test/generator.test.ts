@@ -9,7 +9,7 @@ describe('generator', () => {
   const ir = buildIr();
 
   test('reads every operation of both specs once', () => {
-    expect(ir.operations.filter((o) => o.api === 'connect')).toHaveLength(94);
+    expect(ir.operations.filter((o) => o.api === 'connect')).toHaveLength(100);
     expect(ir.operations.filter((o) => o.api === 'platform')).toHaveLength(19);
     expect(new Set(ir.operations.map((o) => o.name)).size).toBe(ir.operations.length);
   });

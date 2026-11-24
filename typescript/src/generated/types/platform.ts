@@ -16,7 +16,7 @@ export interface CreateTranscriptionRequest {
   /** The audio file. At most 100 MB and 2 hours (7,200 s) of audio. WAV with 16-bit PCM is the tested format; FLAC, MP3, M4A and Ogg are decoded with FFmpeg. Stereo is mixed to mono. */
   file: Uploadable;
   /** ISO 639-1 code of the spoken language, lower case, without region. Without it the language is detected. */
-  language?: "bg" | "cs" | "da" | "de" | "el" | "en" | "es" | "et" | "fi" | "fr" | "hr" | "hu" | "it" | "lt" | "lv" | "mt" | "nl" | "pl" | "pt" | "ro" | "ru" | "sk" | "sl" | "sv" | "uk" | (string & {});
+  language?: "af" | "am" | "ar" | "as" | "az" | "ba" | "be" | "bg" | "bn" | "bo" | "br" | "bs" | "ca" | "cs" | "cy" | "da" | "de" | "el" | "en" | "es" | "et" | "eu" | "fa" | "fi" | "fo" | "fr" | "gl" | "gu" | "ha" | "haw" | "he" | "hi" | "hr" | "ht" | "hu" | "hy" | "id" | "is" | "it" | "ja" | "jw" | "ka" | "kk" | "km" | "kn" | "ko" | "la" | "lb" | "ln" | "lo" | "lt" | "lv" | "mg" | "mi" | "mk" | "ml" | "mn" | "mr" | "ms" | "mt" | "my" | "ne" | "nl" | "nn" | "no" | "oc" | "pa" | "pl" | "ps" | "pt" | "ro" | "ru" | "sa" | "sd" | "si" | "sk" | "sl" | "sn" | "so" | "sq" | "sr" | "su" | "sv" | "sw" | "ta" | "te" | "tg" | "th" | "tk" | "tl" | "tr" | "tt" | "uk" | "ur" | "uz" | "vi" | "yi" | "yo" | "yue" | "zh" | (string & {});
   /** Separate the speakers and return `speakers`. */
   diarization?: boolean;
   /** The most speakers to separate. Values above 8 count as 8. */

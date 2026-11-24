@@ -7,10 +7,13 @@ info:
 
     The client sends a `config` text frame within 10 seconds of the upgrade, then binary audio
     frames. The server sends `session_ready`, then one `transcript` per finished segment.
-    Every transcript is final. To end a stream, send `end_utterance` and keep reading. The server
-    answers `ack`; transcripts for the audio it still held can arrive after the ack. Stop when a
-    transcript's `segment.end` reaches the ack's `processed_until`, or when nothing has arrived for
-    3 seconds (the last stretch was silence), then send `close`.
+    Every transcript is final. To end a stream, send `end_utterance` and read until `flushed`, then
+    send `close`. The server answers `ack` at once, then sends the transcripts of the audio up to
+    the ack's `processed_until`, then `flushed`. Keep a timeout: servers before 23.11.2026 send no
+    `flushed`, and a session that closes first or a full out-queue can lose it. After the timeout,
+    use the old rule: stop when a transcript's `segment.end` reaches the ack's `processed_until`,
+    or when nothing has arrived for 3 seconds. The SDKs from 0.2.0 (TypeScript, Python, Java,
+    .NET) do this in `finish()`. Ignore message types you do not know.
 
     A refused handshake is an HTTP response with the usual error body, not a WebSocket close.
     Close codes: 1000 normal end, 1003 `unsupported_audio`, 1008 with the error code as the
@@ -57,6 +60,8 @@ channels:
         $ref: "#/components/messages/transcript"
       ack:
         $ref: "#/components/messages/ack"
+      flushed:
+        $ref: "#/components/messages/flushed"
       language:
         $ref: "#/components/messages/language"
       speakerRoles:
@@ -119,6 +124,7 @@ operations:
       - $ref: "#/channels/stream/messages/sessionReady"
       - $ref: "#/channels/stream/messages/transcript"
       - $ref: "#/channels/stream/messages/ack"
+      - $ref: "#/channels/stream/messages/flushed"
       - $ref: "#/channels/stream/messages/language"
       - $ref: "#/channels/stream/messages/speakerRoles"
       - $ref: "#/channels/stream/messages/backpressure"
@@ -196,7 +202,7 @@ components:
     endUtterance:
       name: end_utterance
       title: End utterance
-      summary: Flushes the audio the server holds. The server answers with `ack`.
+      summary: Flushes the audio the server holds. The server answers with `ack`, then `flushed`.
       payload:
         type: object
         required: [type]
@@ -288,7 +294,7 @@ components:
     ack:
       name: ack
       title: Ack
-      summary: Answer to `end_utterance`.
+      summary: Answer to `end_utterance`, sent at once.
       payload:
         type: object
         required: [type, processed_until]
@@ -298,12 +304,41 @@ components:
           processed_until:
             type: number
             description: >-
-              Seconds of audio the server has read. Transcripts for audio before this point can
-              still arrive after the ack. If the last stretch was silence, none does.
+              Seconds of audio the server has read, with 3 decimals. Transcripts for audio before
+              this point can still arrive after the ack, then `flushed` with the same value. If the
+              last stretch was silence, no transcript comes.
       examples:
         - name: ack
           payload:
             type: ack
+            processed_until: 34.85
+
+    flushed:
+      name: flushed
+      title: Flushed
+      summary: The server has finished its work on the audio up to `processed_until`.
+      description: >-
+        Sent after the `ack` of an `end_utterance` and after the transcripts of the audio up to
+        `processed_until`. Audio the server dropped (`backpressure`) or could not transcribe
+        (`asr_failed`, `language_unsupported`) has no transcript. A failed segment sends `error`
+        with `asr_failed`, not fatal, instead of its transcript, and `flushed` still comes. After
+        a silent tail, `flushed` can follow the `ack` at once. The `backpressure` for a dropped
+        segment can come before or after the `ack`. Several `end_utterance` get one `ack` and one
+        `flushed` each, in order, so pair them by order. Not sent if the session closes first,
+        and an out-queue overflow can drop it. Servers before 23.11.2026 do not send it.
+      payload:
+        type: object
+        required: [type, processed_until]
+        properties:
+          type:
+            const: flushed
+          processed_until:
+            type: number
+            description: The same value as in the `ack` of the same `end_utterance`, in seconds.
+      examples:
+        - name: flushed
+          payload:
+            type: flushed
             processed_until: 34.85
 
     language:
@@ -348,8 +383,9 @@ components:
       summary: Role per speaker label, when `speaker_roles` is on.
       description: >-
         Sent once one speaker is the doctor with a confidence of 0.75 or more, then when roles
-        change, and with `final` true after `end_utterance`. A short stream, or one with a single
-        voice, can end without this message.
+        change, and with `final` true after `end_utterance`. The final message usually follows
+        `flushed`; under load it can come earlier, or not at all for a later `end_utterance`. A
+        short stream, or one with a single voice, can end without this message.
       payload:
         type: object
         required: [type, roles, final, seq]
@@ -628,6 +664,7 @@ components:
           type: integer
         segment:
           type: object
+          required: [start, end]
           properties:
             start:
               type: number

@@ -95,20 +95,24 @@ function partnerView(doc: Json): Json {
   return spec;
 }
 
-/** Names that must not appear: service-only operationIds, internal paths and internal fields. */
+/** Names that must not appear: service-only operationIds and internal paths. */
 export function internalNames(contract: Json): string[] {
   const ops = Object.values<Json>(contract.paths).flatMap((item) => METHODS.map((m) => item[m]).filter(Boolean));
   const ids = ops.filter(serviceOnly).map((op) => op.operationId as string);
   const paths = Object.entries<Json>(contract.paths)
     .filter(([, item]) => METHODS.every((m) => !item[m] || serviceOnly(item[m])))
     .map(([path]) => path);
-  const partner = JSON.stringify(partnerView(contract));
-  const fields = [...JSON.stringify(contract).matchAll(/"([a-z_]+)":\{"x-medisync-internal":true/g)].map((m) => m[1] as string).filter((name) => !partner.includes(`"${name}"`));
   // The SDKs name an operation in camelCase (TypeScript, Java), snake_case (Python) and
   // PascalCase with Async (.NET, per dotted part).
   const snake = ids.map((id) => id.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase());
   const pascal = ids.map((id) => id.split('.').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join('.'));
-  return [...new Set([...ids, ...snake, ...pascal, ...pascal.map((p) => `${p}Async`), ...paths, ...fields])];
+  return [...new Set([...ids, ...snake, ...pascal, ...pascal.map((p) => `${p}Async`), ...paths])];
+}
+
+/** The `x-medisync-internal` fields of the contract that the partner view does not have. */
+export function internalFields(contract: Json): string[] {
+  const partner = JSON.stringify(partnerView(contract));
+  return [...new Set([...JSON.stringify(contract).matchAll(/"([a-z_]+)":\{"x-medisync-internal":true/g)].map((m) => m[1] as string).filter((name) => !partner.includes(`"${name}"`)))];
 }
 
 // --- the denylist (same rules as the Connect repository's check-public-names.mjs) ---------------
@@ -167,6 +171,19 @@ export function loadDenylist(text: string): { names: Pattern[]; shipped: Pattern
   }
   if (lists.names.length === 0) throw new Error('The denylist has no names. Is it the right file?');
   return lists;
+}
+
+/**
+ * An internal field where code names it: a quoted key, a property or argument (`name:`, `name?:`,
+ * `name =`), or the Java and C# accessors (`getName(`, `setName(`, `Name { get`). The same word in
+ * a sentence of a public description ("the dashboard shows") is no field and does not count.
+ */
+function fieldPattern(name: string): Pattern {
+  const e = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const camel = name.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
+  const pascal = camel.charAt(0).toUpperCase() + camel.slice(1);
+  const re = new RegExp(`"${e}"|(?<![A-Za-z0-9_])${e}\\??\\s*[:=](?!=)|(?<![A-Za-z0-9_])[gs]et${pascal}\\s*\\(|(?<![A-Za-z0-9_])${pascal}\\s*\\{\\s*get`, 'u');
+  return { label: 'internal Connect field', exec: (text) => re.exec(text) };
 }
 
 /** Literal names, matched as a whole identifier or path. */
@@ -228,7 +245,7 @@ if (import.meta.main) {
     process.exit(2);
   }
   const contract = Bun.YAML.parse(await contractText()) as Json;
-  const internal = internalNames(contract).map(literal);
+  const internal = [...internalNames(contract).map(literal), ...internalFields(contract).map(fieldPattern)];
   const denylist = loadDenylist(await denylistText());
   const hits: Hit[] = [];
   let files = 0;
@@ -256,7 +273,7 @@ if (import.meta.main) {
     }
   }
   // Print where, never the denied pattern itself: CI logs are visible.
-  for (const h of hits) console.error(`${h.file}:${h.line}: ${h.label}${h.label === 'internal Connect name' || h.label === 'e-mail' ? ` (${h.match})` : ''}`);
+  for (const h of hits) console.error(`${h.file}:${h.line}: ${h.label}${h.label === 'internal Connect name' || h.label === 'internal Connect field' || h.label === 'e-mail' ? ` (${h.match})` : ''}`);
   if (hits.length) {
     console.error(`Leak check failed: ${hits.length} hit(s) in ${files} files.`);
     process.exit(1);

@@ -10,7 +10,12 @@ import me.medisync.core.Types;
 import me.medisync.models.connect.Connection;
 import me.medisync.models.connect.ConnectionCreate;
 import me.medisync.models.connect.ConnectionHealth;
+import me.medisync.models.connect.ConnectionInbound;
 import me.medisync.models.connect.ConnectionList;
+import me.medisync.models.connect.ConnectionOAuthStart;
+import me.medisync.models.connect.ConnectionOAuthStarted;
+import me.medisync.models.connect.ConnectionSecretsDelete;
+import me.medisync.models.connect.ConnectionSecretsSet;
 import me.medisync.models.connect.ConnectionTestResult;
 import me.medisync.models.connect.ConnectionUpdate;
 import me.medisync.models.connect.ConnectionsListQuery;
@@ -112,6 +117,8 @@ public final class ConnectConnectionsServiceAsync {
   /**
    * Delete a connection
    * <p>
+   * Deletes the connection. 409 <code>conflict</code> while it has open transfers. A cloud connection ends its sign-in first, as <code>connections.deleteSecrets</code> does: Google Calendar and Microsoft 365 delete the calendar "MediSync" that Connect made (never another calendar; a failure there does not stop the delete), then the grant is revoked where the provider has revocation, and every stored value goes with the connection.
+   * <p>
    * <code>DELETE /v1/connect/connections/{connection_id}</code>, scope <code>connect.setup</code>.
    */
   public CompletableFuture<Void> delete(String connectionId) {
@@ -120,6 +127,8 @@ public final class ConnectConnectionsServiceAsync {
 
   /**
    * Delete a connection
+   * <p>
+   * Deletes the connection. 409 <code>conflict</code> while it has open transfers. A cloud connection ends its sign-in first, as <code>connections.deleteSecrets</code> does: Google Calendar and Microsoft 365 delete the calendar "MediSync" that Connect made (never another calendar; a failure there does not stop the delete), then the grant is revoked where the provider has revocation, and every stored value goes with the connection.
    * <p>
    * <code>DELETE /v1/connect/connections/{connection_id}</code>, scope <code>connect.setup</code>.
    */
@@ -143,6 +152,105 @@ public final class ConnectConnectionsServiceAsync {
    */
   public CompletableFuture<ConnectionTestResult> test(String connectionId, RequestOptions options) {
     return core.request(Operations.CONNECT_CONNECTIONS_TEST, RequestArgs.create().path("connection_id", connectionId), Types.of(ConnectionTestResult.class), options);
+  }
+
+  /**
+   * Start the practice's sign-in to a cloud system
+   * <p>
+   * For a connection with <code>placement: cloud</code> whose system signs in with OAuth (<code>System.auth.kind: oauth2</code>, for example Google Calendar). Answers Connect's start page of the sign-in: open it in the practice's browser, which it sends on to the provider. The sign-in is bound to the connection, its site, <code>member_id</code> (an active member of the site) and the browser that opened the start page, works once and for 15 minutes. After the provider, the browser comes back to Connect (<code>/oauth/callback</code>), which stores the grant sealed to the cloud runner, tests the connection and sends the browser to <code>return_url</code> with <code>connection_id</code>, <code>status</code> (<code>connected</code> or <code>failed</code>) and <code>reason</code>; without <code>return_url</code> it shows a short page. Connect never answers a token. Start again to connect another account; the new grant replaces the old one. Google Calendar and Microsoft 365: after the sign-in Connect makes the calendar "MediSync" in the practice's account, or takes the one it made before, and sets it as <code>settings.write_calendar</code> (with <code>own_write_calendar: true</code>), so <code>appointment.book</code> writes a neutral "Belegt" event there without a further step. A <code>write_calendar</code> the practice chose itself stays.
+   * <p>
+   * <code>POST /v1/connect/connections/{connection_id}/oauth/start</code>, scope <code>connect.setup</code>, answers hold patient data.
+   */
+  public CompletableFuture<ConnectionOAuthStarted> oauthStart(String connectionId, ConnectionOAuthStart body) {
+    return oauthStart(connectionId, body, RequestOptions.none());
+  }
+
+  /**
+   * Start the practice's sign-in to a cloud system
+   * <p>
+   * For a connection with <code>placement: cloud</code> whose system signs in with OAuth (<code>System.auth.kind: oauth2</code>, for example Google Calendar). Answers Connect's start page of the sign-in: open it in the practice's browser, which it sends on to the provider. The sign-in is bound to the connection, its site, <code>member_id</code> (an active member of the site) and the browser that opened the start page, works once and for 15 minutes. After the provider, the browser comes back to Connect (<code>/oauth/callback</code>), which stores the grant sealed to the cloud runner, tests the connection and sends the browser to <code>return_url</code> with <code>connection_id</code>, <code>status</code> (<code>connected</code> or <code>failed</code>) and <code>reason</code>; without <code>return_url</code> it shows a short page. Connect never answers a token. Start again to connect another account; the new grant replaces the old one. Google Calendar and Microsoft 365: after the sign-in Connect makes the calendar "MediSync" in the practice's account, or takes the one it made before, and sets it as <code>settings.write_calendar</code> (with <code>own_write_calendar: true</code>), so <code>appointment.book</code> writes a neutral "Belegt" event there without a further step. A <code>write_calendar</code> the practice chose itself stays.
+   * <p>
+   * <code>POST /v1/connect/connections/{connection_id}/oauth/start</code>, scope <code>connect.setup</code>, answers hold patient data.
+   */
+  public CompletableFuture<ConnectionOAuthStarted> oauthStart(String connectionId, ConnectionOAuthStart body, RequestOptions options) {
+    return core.request(Operations.CONNECT_CONNECTIONS_OAUTH_START, RequestArgs.create().path("connection_id", connectionId).body(body), Types.of(ConnectionOAuthStarted.class), options);
+  }
+
+  /**
+   * Set the copied fields of a cloud connection
+   * <p>
+   * For a connection with <code>placement: cloud</code> whose system takes copied values (<code>System.auth.kind: fields</code>: an API key, an iCal feed URL). Write only: Connect seals the values to the cloud runner at once, stores them encrypted with the practice's key and never answers or logs them; the answer names the fields that are set (<code>auth.fields_set</code>). Send every required field; a new call replaces all values (rotation). A <code>url</code> field is an https URL. Connect tests the connection after the change. Hub connections keep their secrets on the hub and answer 400.
+   * <p>
+   * <code>PUT /v1/connect/connections/{connection_id}/secrets</code>, scope <code>connect.setup</code>, answers hold patient data.
+   */
+  public CompletableFuture<Connection> setSecrets(String connectionId, ConnectionSecretsSet body) {
+    return setSecrets(connectionId, body, RequestOptions.none());
+  }
+
+  /**
+   * Set the copied fields of a cloud connection
+   * <p>
+   * For a connection with <code>placement: cloud</code> whose system takes copied values (<code>System.auth.kind: fields</code>: an API key, an iCal feed URL). Write only: Connect seals the values to the cloud runner at once, stores them encrypted with the practice's key and never answers or logs them; the answer names the fields that are set (<code>auth.fields_set</code>). Send every required field; a new call replaces all values (rotation). A <code>url</code> field is an https URL. Connect tests the connection after the change. Hub connections keep their secrets on the hub and answer 400.
+   * <p>
+   * <code>PUT /v1/connect/connections/{connection_id}/secrets</code>, scope <code>connect.setup</code>, answers hold patient data.
+   */
+  public CompletableFuture<Connection> setSecrets(String connectionId, ConnectionSecretsSet body, RequestOptions options) {
+    return core.request(Operations.CONNECT_CONNECTIONS_SET_SECRETS, RequestArgs.create().path("connection_id", connectionId).body(body), Types.of(Connection.class), options);
+  }
+
+  /**
+   * Disconnect a cloud connection's account
+   * <p>
+   * Ends the sign-in of a cloud connection: Google Calendar and Microsoft 365 first delete the calendar "MediSync" that Connect made (never another calendar; a failure there does not stop the disconnect), then an OAuth grant is revoked at the provider where the provider has revocation (Google; Microsoft has none, the practice removes MediSync in its account), then every stored value is deleted. The connection stays, with <code>auth.state: missing</code>, until the practice signs in again. <code>connections.delete</code> does the same before it deletes the connection.
+   * <p>
+   * <code>DELETE /v1/connect/connections/{connection_id}/secrets</code>, scope <code>connect.setup</code>.
+   */
+  public CompletableFuture<Connection> deleteSecrets(String connectionId) {
+    return deleteSecrets(connectionId, null, RequestOptions.none());
+  }
+
+  /**
+   * Disconnect a cloud connection's account
+   * <p>
+   * Ends the sign-in of a cloud connection: Google Calendar and Microsoft 365 first delete the calendar "MediSync" that Connect made (never another calendar; a failure there does not stop the disconnect), then an OAuth grant is revoked at the provider where the provider has revocation (Google; Microsoft has none, the practice removes MediSync in its account), then every stored value is deleted. The connection stays, with <code>auth.state: missing</code>, until the practice signs in again. <code>connections.delete</code> does the same before it deletes the connection.
+   * <p>
+   * <code>DELETE /v1/connect/connections/{connection_id}/secrets</code>, scope <code>connect.setup</code>.
+   */
+  public CompletableFuture<Connection> deleteSecrets(String connectionId, @Nullable ConnectionSecretsDelete body) {
+    return deleteSecrets(connectionId, body, RequestOptions.none());
+  }
+
+  /**
+   * Disconnect a cloud connection's account
+   * <p>
+   * Ends the sign-in of a cloud connection: Google Calendar and Microsoft 365 first delete the calendar "MediSync" that Connect made (never another calendar; a failure there does not stop the disconnect), then an OAuth grant is revoked at the provider where the provider has revocation (Google; Microsoft has none, the practice removes MediSync in its account), then every stored value is deleted. The connection stays, with <code>auth.state: missing</code>, until the practice signs in again. <code>connections.delete</code> does the same before it deletes the connection.
+   * <p>
+   * <code>DELETE /v1/connect/connections/{connection_id}/secrets</code>, scope <code>connect.setup</code>.
+   */
+  public CompletableFuture<Connection> deleteSecrets(String connectionId, @Nullable ConnectionSecretsDelete body, RequestOptions options) {
+    return core.request(Operations.CONNECT_CONNECTIONS_DELETE_SECRETS, RequestArgs.create().path("connection_id", connectionId).body(body), Types.of(Connection.class), options);
+  }
+
+  /**
+   * Get the webhook address of a cloud connection
+   * <p>
+   * For a connection with <code>placement: cloud</code> whose system can call Connect when an appointment changes (eTermin, Cal.com). Answers the address the practice pastes into the system's webhook settings. Connect checks every call to it before it uses the call: eTermin signs nothing, so the token in the address is the check; Cal.com signs each call with the webhook secret the practice sets there and in <code>connections.setSecrets</code> (field <code>webhook_secret</code>). A call that passes ends in <code>busy.changed</code> for the days it names; its body is dropped. The address stays the same for the connection. Treat it like a password: anyone who has it can make Connect read the system's busy times again. 422 <code>verb_unsupported</code> with <code>reason: no_webhook</code>: the system sends no webhook calls to Connect (busy times then change with the poll every few minutes). 400 <code>hub_connection</code>: a hub connection.
+   * <p>
+   * <code>GET /v1/connect/connections/{connection_id}/inbound</code>, scope <code>connect.setup</code>, answers hold patient data.
+   */
+  public CompletableFuture<ConnectionInbound> getInbound(String connectionId) {
+    return getInbound(connectionId, RequestOptions.none());
+  }
+
+  /**
+   * Get the webhook address of a cloud connection
+   * <p>
+   * For a connection with <code>placement: cloud</code> whose system can call Connect when an appointment changes (eTermin, Cal.com). Answers the address the practice pastes into the system's webhook settings. Connect checks every call to it before it uses the call: eTermin signs nothing, so the token in the address is the check; Cal.com signs each call with the webhook secret the practice sets there and in <code>connections.setSecrets</code> (field <code>webhook_secret</code>). A call that passes ends in <code>busy.changed</code> for the days it names; its body is dropped. The address stays the same for the connection. Treat it like a password: anyone who has it can make Connect read the system's busy times again. 422 <code>verb_unsupported</code> with <code>reason: no_webhook</code>: the system sends no webhook calls to Connect (busy times then change with the poll every few minutes). 400 <code>hub_connection</code>: a hub connection.
+   * <p>
+   * <code>GET /v1/connect/connections/{connection_id}/inbound</code>, scope <code>connect.setup</code>, answers hold patient data.
+   */
+  public CompletableFuture<ConnectionInbound> getInbound(String connectionId, RequestOptions options) {
+    return core.request(Operations.CONNECT_CONNECTIONS_GET_INBOUND, RequestArgs.create().path("connection_id", connectionId), Types.of(ConnectionInbound.class), options);
   }
 
   /**
