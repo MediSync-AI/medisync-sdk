@@ -131,22 +131,34 @@ function edge(a: string | undefined, b: string | undefined, c: string | undefine
   return UPPER.test(a) && UPPER.test(b) && !!c && LOWER.test(c);
 }
 
-type Pattern = { label: string; exec(text: string): RegExpExecArray | null };
+type Pattern = { label: string; exec(text: string): RegExpExecArray | null; inBinary?: Pattern };
+
+// Random bytes of a compiled file form mixed spellings: a metadata table in the .NET build of 0.3.0
+// held a listed first name with a small first and capital last letters. In a compiled file a name
+// counts only in a spelling a person writes: each word in lower case, upper case or capitalised, or
+// exactly as the denylist spells it.
+function written(word: string, listed: RegExp): boolean {
+  return listed.test(word) || word.split(/[^\p{L}]+/u).every((w) => w === w.toUpperCase() || w.slice(1) === w.slice(1).toLowerCase());
+}
 
 function wholeWord(source: string): Pattern {
-  const re = new RegExp(source.replace(/^\\b/, '').replace(/\\b$/, ''), 'giu');
+  const body = source.replace(/^\\b/, '').replace(/\\b$/, '');
+  const re = new RegExp(body, 'giu');
+  const listed = new RegExp(`^(?:${body})$`, 'u');
+  const find = (text: string, keep: (word: string) => boolean): RegExpExecArray | null => {
+    re.lastIndex = 0;
+    for (let m = re.exec(text); m; m = re.exec(text)) {
+      const start = m.index;
+      const end = start + m[0].length;
+      if (m[0] && edge(text[start - 1], text[start], text[start + 1]) && edge(text[end - 1], text[end], text[end + 1]) && keep(m[0])) return m;
+      re.lastIndex = start + 1;
+    }
+    return null;
+  };
   return {
     label: 'denylist name',
-    exec(text) {
-      re.lastIndex = 0;
-      for (let m = re.exec(text); m; m = re.exec(text)) {
-        const start = m.index;
-        const end = start + m[0].length;
-        if (m[0] && edge(text[start - 1], text[start], text[start + 1]) && edge(text[end - 1], text[end], text[end + 1])) return m;
-        re.lastIndex = start + 1;
-      }
-      return null;
-    },
+    exec: (text) => find(text, () => true),
+    inBinary: { label: 'denylist name', exec: (text) => find(text, (word) => written(word, listed)) },
   };
 }
 
@@ -265,7 +277,8 @@ if (import.meta.main) {
       try {
         for (const f of walk(dir)) {
           files++;
-          hits.push(...scan(f, dir, [...denylist.names, ...denylist.shipped, ...internal], true).map((h) => ({ ...h, file: `${basename(artifact)}:${h.file}` })));
+          const patterns = [...denylist.names, ...denylist.shipped, ...internal];
+          hits.push(...scan(f, dir, BINARY.test(f) ? patterns.map((p) => p.inBinary ?? p) : patterns, true).map((h) => ({ ...h, file: `${basename(artifact)}:${h.file}` })));
         }
       } finally {
         cleanup();
